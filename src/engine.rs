@@ -1,60 +1,11 @@
-use std::{error::Error, fmt, f32};
-
-/// An enum used to handle operator tokens, used in `Token::Operators`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Ops {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Pow,
-    Fac,
-}
-
-impl Ops {
-    /// A method used to return the precedence level of
-    /// any operator. The precedence levels are:
-    /// - `Add` and `Sub`: level `0`
-    /// - `Mul` and `Div`: level `1`
-    /// - `Pow` and `Fac`: level `2`
-    fn precedence(&self) -> u8 {
-        match *self {
-            Self::Add | Self::Sub => 0,
-            Self::Mul | Self::Div => 1,
-            Self::Pow | Self::Fac => 2,
-        }
-    }
-}
-
-impl fmt::Display for Ops {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Self::Add => write!(f, "+"),
-            Self::Sub => write!(f, "-"),
-            Self::Mul => write!(f, "*"),
-            Self::Div => write!(f, "/"),
-            Self::Pow => write!(f, "^"),
-            Self::Fac => write!(f, "!")
-        }
-    }
-}
-
-/// An enum used to handle tokens of the given input.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-    Number(f32), // TODO: currently can't handle float numbers
-    Variable(String, Option<f32>),
-    LeftBracket,
-    RightBracket,
-    Operators(Ops),
-    Unknown(char),
-    // Commands(String), // TODO: implement commands
-}
+use crate::token::{Ops, Cmd, Token, TokenError};
+use std::{process, f32};
 
 /// The struct of the engine of the calculator. The calculator
 /// takes the input, tokenizes it with the `lexer()`, then it
 /// parses the tokens returning a postfix expression of the
-/// given input, and then TODO: finish documentation here
+/// given input, and then evaluates the postfix expression.
+// TODO: examples
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Calcr {
     vars: Vec<Token>,
@@ -77,6 +28,12 @@ impl Calcr {
     /// - `/` is tokenized as `Token::Operators(Ops::Div)`
     /// - `\r`, `\n` and ` ` are ignored
     /// - every other character is tokenized as `Token::Unknown(character)`
+    /// 
+    /// **Note**: if there is a `+` or a `-` at the beginning
+    /// of the input, a `Token::Number(0.0)` is appended at
+    /// the beginning of the `Vec<Token>`, and those are the only
+    /// two operands that are allowed to be at the beginning
+    /// of the input.
     // TODO: examples
     fn lexer(input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
@@ -109,24 +66,49 @@ impl Calcr {
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
-                    let var: String = input[idx..idx + to_skip].into();
+                    let string: String = input[idx..idx + to_skip].into();
 
-                    // TODO: implement custom variables
-                    let value = match var.as_str() {
-                        "pi" => Some(f32::consts::PI),
-                        "e" => Some(f32::consts::E),
-                        "tau" => Some(f32::consts::TAU),
-                        _ => None
-                    };
+                    if let Some(Token::CommandToken) = tokens.iter().last() {
+                        let command = match string.as_str() {
+                            "exit" => Cmd::Exit,
+                            "help" => Cmd::Help,
+                            _ => Cmd::UnknownCommand,
+                        };
 
-                    tokens.push(Token::Variable(var, value));
+                        tokens.pop().unwrap();
+
+                        tokens.push(Token::Command(command))
+                    } else {
+                        // TODO: implement custom variables
+                        let value = match string.as_str() {
+                            "pi" => Some(f32::consts::PI),
+                            "e" => Some(f32::consts::E),
+                            "tau" => Some(f32::consts::TAU),
+                            _ => None
+                        };
+
+                        tokens.push(Token::Variable(string, value));
+                    }
 
                     to_skip -= 1;
                 },
+                '\\' => tokens.push(Token::CommandToken),
                 '(' => tokens.push(Token::LeftBracket),
                 ')' => tokens.push(Token::RightBracket),
-                '+' => tokens.push(Token::Operators(Ops::Add)),
-                '-' => tokens.push(Token::Operators(Ops::Sub)),
+                '+' => {
+                    if tokens.is_empty() {
+                        tokens.push(Token::Number(0.0));
+                    }
+
+                    tokens.push(Token::Operators(Ops::Add));
+                },
+                '-' => {
+                    if tokens.is_empty() {
+                        tokens.push(Token::Number(0.0));
+                    }
+
+                    tokens.push(Token::Operators(Ops::Sub));
+                },
                 '*' => tokens.push(Token::Operators(Ops::Mul)),
                 '/' => tokens.push(Token::Operators(Ops::Div)),
                 '^' => tokens.push(Token::Operators(Ops::Pow)),
@@ -186,6 +168,7 @@ impl Calcr {
                     }
                 }
                 Token::Unknown(c) => return Err(TokenError::UnknownToken(c)),
+                _ => return Err(TokenError::UnknownError),
             }
             // println!("stack = {:?}", stack);
             // println!("buffer = {:?}", buffer);
@@ -206,21 +189,39 @@ impl Calcr {
         Ok(buffer)
     }
 
-    // pub fn evaluate(&mut self, input: &str) -> Result<Option<isize>, TokenError> {
-        // pub fn evaluate(&mut self, input: &str) -> Option<isize> {
+    // TODO: documentation
+    // TODO: examples
     pub fn evaluate(&mut self, input: &str) -> Result<f32, TokenError> {
         let tokens = Self::lexer(input);
         
+        for (idx, token) in tokens.iter().enumerate() {
+            match (idx, token) {
+                (0, Token::Command(Cmd::Exit)) => {
+                    println!("bye )/");
+
+                    process::exit(0x100);
+                },
+                (0, Token::Command(Cmd::Help)) => {
+                    // TODO: explain that if the command does not have parameters,
+                    // if there are any, they will be ignored
+                    // TODO: write the help message
+                    println!("* Insert help message here *");
+
+                    return Ok(0.0);
+                },
+                (_, Token::Command(cmd)) => return Err(TokenError::InvalidCommandSyntax(*cmd)),
+                _ => {},
+            }
+        }
+
         let postfix = self.parse(tokens);
 
-        println!("{:?}", postfix);
+        // println!("{:?}", postfix);
 
         match postfix {
             Ok(expression) => {
                 let mut stack = Vec::new();
-                // let mut idx: usize = 0; // can't use .enumerate() otherwise i'd had to .clone() everything
 
-                // for (idx, token) in expression.iter().enumerate() {
                 for token in expression {
                     match token {
                         Token::Number(number) => stack.push(number),
@@ -236,7 +237,8 @@ impl Calcr {
                             let second = stack.pop();
 
                             match (first, second) {
-                                (Some(first_number), Some(second_number)) => {
+                                // note: they are inverted
+                                (Some(second_number), Some(first_number)) => {
                                     let result = match operator {
                                         Ops::Add => first_number + second_number,
                                         Ops::Sub => first_number - second_number,
@@ -247,32 +249,21 @@ impl Calcr {
 
                                     stack.push(result);
                                 },
-                                (Some(number), None) => {
-                                    // FIXME: fix this somehow
-                                    // if idx != 0 {
-                                    // if !stack.is_empty() || stack.len() == 1 {
-                                    // if stack.len() > 1 {
-                                    //     return Err(TokenError::MissingOperands)
-                                    // }
-
-                                    match operator {
-                                        Ops::Add => stack.push(number),
-                                        Ops::Sub => stack.push(-number),
-                                        _ => return Err(TokenError::MissingOperands),
-                                    }
-                                }
                                 _ => return Err(TokenError::MissingOperands),
                             }
                         },
-                        _ => {},
+                        _ => return Err(TokenError::UnknownError),
                     }
-                    // idx += 1;
+                }
+                // println!("stack at the end = {:?}", stack);
+
+                // the given input was empty
+                if stack.is_empty() {
+                    return Ok(0.0)
                 }
 
-                println!("stack at the end = {:?}", stack);
-
                 if stack.len() > 1 {
-                    return Err(TokenError::UnknownError)
+                    return Err(TokenError::MissingOperators)
                 }
 
                 Ok(stack[0])
@@ -282,32 +273,9 @@ impl Calcr {
     }
 }
 
-/// An enum to handle syntax errors in the given input.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenError {
-    UnknownToken(char),
-    UnknownVariable(String),
-    MisplacedBrackets,
-    MissingOperands,
-    UnimplementedOperator(Ops),
-    UnknownError, // TODO: for debugging, to be deleted
-}
 
-impl fmt::Display for TokenError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnknownToken(c) => write!(f, "Unknown token {:?}.", c),
-            Self::UnknownVariable(v) => write!(f, "Unknown variable {}.", v),
-            Self::MisplacedBrackets => write!(f, "Brackets are misplaced."),
-            Self::MissingOperands => write!(f, "There are not enough operands."),
-            Self::UnimplementedOperator(operator) => write!(f, "'{}' is currently unimplemented.", operator),
-            Self::UnknownError => write!(f, "An unknown error occured while evaluating the input."),
-        }
-    }
-}
-
-impl Error for TokenError {}
-
+// TODO: write tests for command
+// TODO: write tests for other things, once implemented
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -404,22 +372,30 @@ mod tests {
             Token::Number(4.0),
             Token::Operators(Ops::Sub),
         ]));
-
-        // TODO: write a specific test for custom variables, once implemented
     }
 
     #[test]
     fn evaluation_tests() {
-        // TODO: write tests for evaluation
         let mut calcr = Calcr::default();
 
         assert_eq!(calcr.evaluate("-2 + 4"), Ok(2.0));
+
+        assert_eq!(calcr.evaluate("(1 + 5) * 8 - 2 * 3"), Ok(42.0));
+        
+        assert_eq!(calcr.evaluate("1 + pi * 2"), Ok(1.0 + f32::consts::PI * 2.0));
+
+        assert_eq!(calcr.evaluate("1-"), Err(TokenError::MissingOperands));
+
+        assert_eq!(calcr.evaluate("14 25"), Err(TokenError::MissingOperators));
+        
+        assert_eq!(calcr.evaluate("]"), Err(TokenError::UnknownToken(']')));
     }
 
     #[test]
     fn lexer_tests() {
         // TODO: custom variables need to be implemented
-        // assert_eq!(Calcr::lexer(" ( super/ test) * crazy %+224a-    13"), vec![
+        // assert_eq!(Calcr::lexer("- ( super/ test) * crazy %+224a-    13"), vec![
+        //     Token::Number(0.0),
         //     Token::LeftBracket,
         //     Token::Variable("super".to_string()),
         //     Token::Operators(Ops::Div),
