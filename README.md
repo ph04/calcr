@@ -9,9 +9,11 @@ Operators like `^` and `!` are still work in progress, and also custom variables
 
 ## WIP
 - [ ] commands
+- [ ] check of the input at a lexer level
 - [ ] `^` operator
 - [ ] `!` operator
 - [ ] custom variables
+- [ ] history system
 
 ## Known issues
 ```
