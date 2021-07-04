@@ -33,6 +33,7 @@ pub struct Calcr {
 
 impl Calcr {
     /// Returns the stored variables.
+    // TODO: examples
     pub fn vars(&self) -> Vec<Token> {
         self.vars.clone()
     }
@@ -52,15 +53,8 @@ impl Calcr {
     /// - `!` is tokenized as `Token::Operators(Ops::Fac)`
     /// - `\r`, `\n` and ` ` are ignored
     /// - every other character is tokenized as `Token::Unknown(character)`
-    /// 
-    /// **Note**: if there is a `+` or a `-` at the beginning
-    /// of the input, a `Token::Number(0.0)` is appended at
-    /// the beginning of the `Vec<Token>`, and those are the only
-    /// two operands that are allowed to be at the beginning
-    /// of the input.
     // TODO: examples
-    // FIXME: fix major issue with brackets (and maybe there's more idk)
-    fn lexer(input: &str) -> Vec<Token> {
+    fn lexer(input: &str) -> Result<Vec<Token>, TokenError> {
         let mut tokens = Vec::new();
 
         let mut iter = input.char_indices();
@@ -71,6 +65,14 @@ impl Calcr {
 
             match ch {
                 '0'..='9' => {
+                    if let Some(prev) = tokens.iter().last() {
+                        match prev {
+                            Token::Number(_) | Token::Variable(..) => return Err(TokenError::MissingOperators),
+                            Token::RightBracket => tokens.push(Token::Operators(Ops::Mul)),
+                            _ => {},
+                        }
+                    }
+
                     to_skip = input[idx..]
                         .bytes()
                         .take_while(|c| c.is_ascii_digit())
@@ -86,6 +88,14 @@ impl Calcr {
                     to_skip -= 1;
                 },
                 'a'..='z' | 'A'..='Z' => {
+                    if let Some(prev) = tokens.iter().last() {
+                        match prev {
+                            Token::Number(_) | Token::Variable(..) => return Err(TokenError::MissingOperators),
+                            Token::RightBracket => tokens.push(Token::Operators(Ops::Mul)),
+                            _ => {},
+                        }
+                    }
+
                     to_skip = input[idx..]
                         .bytes()
                         .take_while(|c| c.is_ascii_alphabetic())
@@ -118,20 +128,39 @@ impl Calcr {
                     to_skip -= 1;
                 },
                 '\\' => tokens.push(Token::CommandToken),
-                '(' => tokens.push(Token::LeftBracket),
+                '(' => {
+                    if let Some(prev) = tokens.iter().last() {
+                        match prev {
+                            Token::Number(_) | Token::Variable(..) | Token::RightBracket => tokens.push(Token::Operators(Ops::Mul)),
+                            _ => {},
+                        }
+                    }
+
+                    tokens.push(Token::LeftBracket);
+                },
                 ')' => tokens.push(Token::RightBracket),
                 '&' => tokens.push(Token::Operators(Ops::Add)),
                 '|' => tokens.push(Token::Operators(Ops::Or)),
                 '+' => {
-                    if tokens.is_empty() {
-                        tokens.push(Token::Number(0.0));
+                    // TODO: maybe a macro?
+                    if let Some(prev) = tokens.iter().last() {
+                        if prev == &Token::LeftBracket {
+                            tokens.push(Token::Number(0.0))
+                        }
+                    } else {
+                        tokens.push(Token::Number(0.0))
                     }
 
                     tokens.push(Token::Operators(Ops::Add));
                 },
                 '-' => {
-                    if tokens.is_empty() {
-                        tokens.push(Token::Number(0.0));
+                    // TODO: maybe a macro?
+                    if let Some(prev) = tokens.iter().last() {
+                        if prev == &Token::LeftBracket {
+                            tokens.push(Token::Number(0.0))
+                        }
+                    } else {
+                        tokens.push(Token::Number(0.0))
                     }
 
                     tokens.push(Token::Operators(Ops::Sub));
@@ -145,7 +174,7 @@ impl Calcr {
             }
         }
 
-        tokens
+        Ok(tokens)
     }
 
     /// Returns the postfix expression of the given input.
@@ -157,9 +186,7 @@ impl Calcr {
         let mut buffer: Vec<Token> = Vec::new();
         let mut stack: Vec<Token> = Vec::new();
         
-        for idx in 0..tokens.len() {
-            let token = tokens[idx].clone();
-
+        for token in tokens {
             match token {
                 Token::LeftBracket => stack.push(token),
                 Token::RightBracket => {
@@ -188,16 +215,7 @@ impl Calcr {
                     
                     stack.push(token.clone())
                 },
-                Token::Number(_) => {
-                    if idx == 0 {
-                        buffer.push(token);
-                    } else if let Some(prev) = tokens.iter().nth(idx - 1) {
-                        match prev {
-                            Token::Number(_) => return Err(TokenError::MissingOperators),
-                            _ => buffer.push(token),
-                        }
-                    }
-                },
+                Token::Number(_) => buffer.push(token),
                 Token::Variable(..) => {
                     buffer.push(token.clone());
 
@@ -232,108 +250,113 @@ impl Calcr {
     // TODO: examples
     // TODO: debug command to show vecs and stuff (probably it's a mess because it's a global flag, fuck)
     pub fn evaluate(&mut self, input: &str) -> Result<f32, TokenError> {
-        let tokens = Self::lexer(input);
+        let lexed = Self::lexer(input);
         
-        // the input was empty
-        if tokens.is_empty() {
-            return Ok(0.0)
-        }
+        match lexed {
+            Ok(tokens) => {
+                if tokens.is_empty() {
+                    return Ok(0.0)
+                }
 
-        for (idx, token) in tokens.iter().enumerate() {
-            match (idx, token) {
-                (0, Token::Command(Cmd::Exit)) => {
-                    // TODO: better way to exit the program, too rough and ugly message
-                    println!("A nicer way to exit from the program is still WIP...");
+                for (idx, token) in tokens.iter().enumerate() {
+                    match (idx, token) {
+                        (0, Token::Command(Cmd::Exit)) => {
+                            // TODO: better way to exit the program, too rough and ugly message
+                            println!("A nicer way to exit from the program is still WIP...");
 
-                    // process::exit(0x100);
-                    quit::with_code(0x100);
-                },
-                (0, Token::Command(Cmd::Help)) => {
-                    // TODO: make this help message a constant, this way is too dumb
-
-                    println!("WIP going on here");
-                    return Ok(0.0);
-                },
-                (_, Token::Command(cmd)) => return Err(TokenError::InvalidCommandSyntax(*cmd)),
-                _ => {},
-            }
-        }
-
-        let postfix = self.parse(tokens);
-
-        match postfix {
-            Ok(expression) => {
-                let mut stack = Vec::new();
-
-                for token in expression {
-                    match token {
-                        Token::Number(number) => stack.push(number),
-                        Token::Variable(var, value) => {
-                            if let Some(v) = value {
-                                stack.push(v)
-                            } else {
-                                return Err(TokenError::UnknownVariable(var))
-                            }
+                            // process::exit(0x100);
+                            quit::with_code(0x100);
                         },
-                        Token::Operators(operator) => {
-                            let first = stack.pop();
-                            let second = stack.pop();
+                        (0, Token::Command(Cmd::Help)) => {
+                            // TODO: make this help message a constant, this way is too dumb
 
-                            match (first, second) {
-                                // note: they are inverted
-                                (Some(second_number), Some(first_number)) => {
-                                    let result = match operator {
-                                        Ops::And => {
-                                            if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
-                                                let f = unsafe { first_number.to_int_unchecked::<isize>() };
-                                                let s = unsafe { first_number.to_int_unchecked::<isize>() };
-
-                                                (f & s) as f32
-                                            } else {
-                                                return Err(TokenError::InvalidBitwiseOperands);
-                                            }
-                                        },
-                                        Ops::Or => {
-                                            if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
-                                                let f = unsafe { first_number.to_int_unchecked::<isize>() };
-                                                let s = unsafe { first_number.to_int_unchecked::<isize>() };
-
-                                                (f | s) as f32
-                                            } else {
-                                                return Err(TokenError::InvalidBitwiseOperands);
-                                            }
-                                        },
-                                        Ops::Add => first_number + second_number,
-                                        Ops::Sub => first_number - second_number,
-                                        Ops::Mul => first_number * second_number,
-                                        Ops::Div => first_number / second_number,
-                                        Ops::Pow => first_number.powf(second_number),
-                                        _ => return Err(TokenError::UnimplementedOperator(operator)),
-                                    };
-
-                                    stack.push(result);
-                                },
-                                _ => return Err(TokenError::MissingOperands),
-                            }
+                            println!("WIP going on here");
+                            return Ok(0.0);
                         },
-                        _ => return Err(TokenError::UnknownError),
+                        (_, Token::Command(cmd)) => return Err(TokenError::InvalidCommandSyntax(*cmd)),
+                        _ => {},
                     }
                 }
 
-                if stack.len() > 1 {
-                    return Err(TokenError::MissingOperators)
-                }
+                let postfix = self.parse(tokens);
 
-                Ok(stack[0])
+                match postfix {
+                    Ok(expression) => {
+                        let mut stack = Vec::new();
+
+                        for token in expression {
+                            match token {
+                                Token::Number(number) => stack.push(number),
+                                Token::Variable(var, value) => {
+                                    if let Some(v) = value {
+                                        stack.push(v)
+                                    } else {
+                                        return Err(TokenError::UnknownVariable(var))
+                                    }
+                                },
+                                Token::Operators(operator) => {
+                                    let first = stack.pop();
+                                    let second = stack.pop();
+
+                                    match (first, second) {
+                                        // note: they are inverted
+                                        (Some(second_number), Some(first_number)) => {
+                                            let result = match operator {
+                                                // FIXME: BITWISE OPERATORS ARE SOMEHOW BROKEN
+                                                Ops::And => {
+                                                    if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
+                                                        let f = unsafe { first_number.to_int_unchecked::<isize>() };
+                                                        let s = unsafe { first_number.to_int_unchecked::<isize>() };
+
+                                                        (f & s) as f32
+                                                    } else {
+                                                        return Err(TokenError::InvalidBitwiseOperands);
+                                                    }
+                                                },
+                                                Ops::Or => {
+                                                    if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
+                                                        let f = unsafe { first_number.to_int_unchecked::<isize>() };
+                                                        let s = unsafe { first_number.to_int_unchecked::<isize>() };
+
+                                                        (f | s) as f32
+                                                    } else {
+                                                        return Err(TokenError::InvalidBitwiseOperands);
+                                                    }
+                                                },
+                                                Ops::Add => first_number + second_number,
+                                                Ops::Sub => first_number - second_number,
+                                                Ops::Mul => first_number * second_number,
+                                                Ops::Div => first_number / second_number,
+                                                Ops::Pow => first_number.powf(second_number),
+                                                _ => return Err(TokenError::UnimplementedOperator(operator)),
+                                            };
+
+                                            stack.push(result);
+                                        },
+                                        _ => return Err(TokenError::MissingOperands),
+                                    }
+                                },
+                                _ => return Err(TokenError::UnknownError),
+                            }
+                        }
+
+                        if stack.len() > 1 {
+                            return Err(TokenError::MissingOperators)
+                        }
+
+                        Ok(stack[0])
+                    },
+                    Err(token_error) => Err(token_error), // cringe
+                }
             },
-            Err(token_error) => Err(token_error),
+            Err(token_error) => Err(token_error), // cringe
         }
     }
 }
 
 // TODO: write tests for commands
 // TODO: write tests for bit operators
-// TODO: write tests for other things, once implemented
+// TODO: ^
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -342,7 +365,7 @@ mod tests {
     fn parse_tests() {
         let mut calcr = Calcr::default();
 
-        let tokens1 = Calcr::lexer("((1 + 2) * (3 - 4))");
+        let tokens1 = Calcr::lexer("((1 + 2) * (3 - 4))").unwrap();
                 
         assert_eq!(calcr.parse(tokens1), Ok(vec![
             Token::Number(1.0),
@@ -354,7 +377,7 @@ mod tests {
             Token::Operators(Ops::Mul),
         ]));
 
-        let tokens2 = Calcr::lexer("1 * 2 - 3 * 4");
+        let tokens2 = Calcr::lexer("1 * 2 - 3 * 4").unwrap();
 
         assert_eq!(calcr.parse(tokens2), Ok(vec![
             Token::Number(1.0),
@@ -366,7 +389,7 @@ mod tests {
             Token::Operators(Ops::Sub),
         ]));
 
-        let tokens3 = Calcr::lexer("1 + 2 - 3 + 4");
+        let tokens3 = Calcr::lexer("1 + 2 - 3 + 4").unwrap();
 
         assert_eq!(calcr.parse(tokens3), Ok(vec![
             Token::Number(1.0),
@@ -378,26 +401,30 @@ mod tests {
             Token::Operators(Ops::Add),
         ]));
 
-        let tokens4 = Calcr::lexer("((((2+4)) ()) () (()3*5))");
+        let tokens4 = Calcr::lexer("((((2+4)) ()) () (()3*5))").unwrap();
 
         assert_eq!(calcr.parse(tokens4), Ok(vec![
             Token::Number(2.0),
             Token::Number(4.0),
             Token::Operators(Ops::Add),
+            Token::Operators(Ops::Mul),
+            Token::Operators(Ops::Mul),
             Token::Number(3.0),
+            Token::Operators(Ops::Mul),
             Token::Number(5.0),
+            Token::Operators(Ops::Mul),
             Token::Operators(Ops::Mul),
         ]));
 
-        let tokens5 = Calcr::lexer("(1 + 4))");
+        let tokens5 = Calcr::lexer("(1 + 4))").unwrap();
 
         assert_eq!(calcr.parse(tokens5), Err(TokenError::MisplacedBrackets));
 
-        let tokens6 = Calcr::lexer("((3 + 2)");
+        let tokens6 = Calcr::lexer("((3 + 2)").unwrap();
 
         assert_eq!(calcr.parse(tokens6), Err(TokenError::MisplacedBrackets));
 
-        let tokens7 = Calcr::lexer("2 / e * (3 + pi)");
+        let tokens7 = Calcr::lexer("2 / e (3 + pi)").unwrap();
 
         assert_eq!(calcr.parse(tokens7), Ok(vec![
             Token::Number(2.0),
@@ -409,7 +436,7 @@ mod tests {
             Token::Operators(Ops::Mul),
         ]));
 
-        let tokens8 = Calcr::lexer("(1 + 2) * 3");
+        let tokens8 = Calcr::lexer("(1 + 2) * 3").unwrap();
         
         assert_eq!(calcr.parse(tokens8), Ok(vec![
             Token::Number(1.0),
@@ -419,7 +446,7 @@ mod tests {
             Token::Operators(Ops::Mul),
         ]));
 
-        let tokens9 = Calcr::lexer("1 + 2 * 3 - 4");
+        let tokens9 = Calcr::lexer("1 + 2 * 3 - 4").unwrap();
 
         assert_eq!(calcr.parse(tokens9), Ok(vec![
             Token::Number(1.0),
@@ -431,14 +458,17 @@ mod tests {
             Token::Operators(Ops::Sub),
         ]));
 
-        let tokens10 = Calcr::lexer("5 6 +");
-
-        assert_eq!(calcr.parse(tokens10), Err(TokenError::MissingOperators));
         
         // FIXME: this test right here, and it's not enough anyway
-        // let tokens11 = Calcr::lexer("3 ( + 8 )");
+        let tokens11 = Calcr::lexer("3 (8)").unwrap();
 
         // assert_eq!(calcr.parse(tokens11), Err(TokenError::MissingOperands))
+        assert_eq!(calcr.parse(tokens11), Ok(vec![
+            Token::Number(3.0),
+            Token::Number(8.0),
+            Token::Operators(Ops::Mul),
+        ]));
+
     }
 
     #[test]
@@ -450,6 +480,8 @@ mod tests {
         assert_eq!(calcr.evaluate("(1 + 5) * 8 - 2 * 3"), Ok(42.0));
         
         assert_eq!(calcr.evaluate("1 + pi * 2"), Ok(1.0 + f32::consts::PI * 2.0));
+
+        assert_eq!(calcr.evaluate(" 5 (3 -5)"), Ok(-10.0));
 
         assert_eq!(calcr.evaluate("1-"), Err(TokenError::MissingOperands));
 
@@ -477,5 +509,14 @@ mod tests {
         //     Token::Operators(Ops::Sub),
         //     Token::Number(13.0),
         // ]);
+
+
+        // TODO: 3 () 3
+        // TODO: (5) 3
+        // TODO: (5) (3)
+        // TODO: -5 (-3) (+4)
+        // let tokens10 = Calcr::lexer("5 6 +").unwrap();
+
+        // assert_eq!(calcr.parse(tokens10), Err(TokenError::MissingOperators));
     }
 }
