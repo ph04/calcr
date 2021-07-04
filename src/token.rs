@@ -3,6 +3,8 @@ use std::{error::Error, fmt, f32};
 /// An enum used to handle operator tokens, used in `Token::Operators`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ops {
+    And,
+    Or,
     Add,
     Sub,
     Mul,
@@ -19,9 +21,10 @@ impl Ops {
     /// - `Pow` and `Fac`: level `2`
     pub fn precedence(&self) -> u8 {
         match *self {
-            Self::Add | Self::Sub => 0,
-            Self::Mul | Self::Div => 1,
-            Self::Pow | Self::Fac => 2,
+            Self::And | Self::Or => 0,
+            Self::Add | Self::Sub => 1,
+            Self::Mul | Self::Div => 2,
+            Self::Pow | Self::Fac => 3,
         }
     }
 }
@@ -29,6 +32,8 @@ impl Ops {
 impl fmt::Display for Ops {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
+            Self::And => write!(f, "&"),
+            Self::Or => write!(f, "|"),
             Self::Add => write!(f, "+"),
             Self::Sub => write!(f, "-"),
             Self::Mul => write!(f, "*"),
@@ -80,6 +85,7 @@ pub enum TokenError {
     MissingOperators,
     UnimplementedOperator(Ops),
     InvalidCommandSyntax(Cmd),
+    InvalidBitwiseOperands,
     UnknownError,
 }
 
@@ -87,12 +93,13 @@ impl fmt::Display for TokenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownToken(c) => write!(f, "Unknown token {:?}.", c),
-            Self::UnknownVariable(v) => write!(f, "Unknown variable {}.", v),
+            Self::UnknownVariable(v) => write!(f, "Unknown variable '{}'.", v),
             Self::MisplacedBrackets => write!(f, "Brackets are misplaced."),
             Self::MissingOperands => write!(f, "There are not enough operands."),
             Self::MissingOperators => write!(f, "There are not enough operators."),
             Self::UnimplementedOperator(operator) => write!(f, "'{}' is currently unimplemented.", operator),
             Self::InvalidCommandSyntax(cmd) => write!(f, "Invalid syntax for the command '{}'", cmd),
+            Self::InvalidBitwiseOperands => write!(f, "Invalid bitwise operands, integers are required"),
             Self::UnknownError => write!(f, "An unknown error occured while evaluating the input."),
         }
     }

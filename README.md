@@ -1,21 +1,23 @@
 # calcr
 A simple calculator made in Rust.
 
-## What it can
+### What it can
 It can handle **addition**, **subtraction**, **multiplication** and **division**, and it comes with three constants, `pi`, `e` and `tau`.
 
-## What it can't
+### What it can't
 Operators like `^` and `!` are still work in progress, and also custom variables will be added shortly. First thing that is going to be added are commands, and they will be accessible with the `\` special character.
 
-## WIP
-- [ ] commands
+### WIP
+- [ ] fix major issue
+- [ ] add \clear command
+- [ ] fix \help command
 - [ ] check of the input at a lexer level
 - [ ] `^` operator
 - [ ] `!` operator
 - [ ] custom variables
 - [ ] history system
 
-## Known issues
+### Known issues
 ```
 3 2 +
 > 5

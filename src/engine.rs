@@ -1,8 +1,28 @@
 use crate::token::{Ops, Cmd, Token, TokenError};
-use std::{process, f32};
+// use std::{process, f32};
+// use std::{convert::TryInto, f32};
+use std::f32;
+use ansi_term::Colour::RGB;
+use std::fmt::Write;
+
+// const HELP: String = build_help();
+
+// fn build_help() -> String {
+//     let gray = RGB(175, 175, 175);
+
+//     let mut help_message = String::new();
+
+//     writeln!(help_message, "Currently supported commands:");
+//     writeln!(help_message, "{} {}\n", gray.italic().paint("Note:"), gray.paint("if a command takes more parameters than what it requires, the exceeding ones will be ignored"));
+//     writeln!(help_message, "- {}: exits the program; takes no parameter", gray.paint("\\exit"));
+//     writeln!(help_message, "- {}: prints this help message; takes no parameter", gray.paint("\\help"));
+//     writeln!(help_message, "");
+
+//     help_message
+// }
 
 /// The struct of the engine of the calculator. The calculator
-/// takes the input, tokenizes it with the `lexer()`, then it
+/// takes the input, tokenizes it with the lexer, then it
 /// parses the tokens returning a postfix expression of the
 /// given input, and then evaluates the postfix expression.
 // TODO: examples
@@ -22,10 +42,14 @@ impl Calcr {
     /// - variables are tokenizes as `Token::Variable(variable)`
     /// - `(` is tokenized as `Token::LeftBracket`
     /// - `)` is tokenized as `Token::RightBracket`
+    /// - `&` is tokenized as `Token::Operators(Ops::And)`
+    /// - `|` is tokenized as `Token::Operators(Ops::Or)`
     /// - `+` is tokenized as `Token::Operators(Ops::Add)`
     /// - `-` is tokenized as `Token::Operators(Ops::Sub)`
     /// - `*` is tokenized as `Token::Operators(Ops::Mul)`
     /// - `/` is tokenized as `Token::Operators(Ops::Div)`
+    /// - `^` is tokenized as `Token::Operators(Ops::Pow)`
+    /// - `!` is tokenized as `Token::Operators(Ops::Fac)`
     /// - `\r`, `\n` and ` ` are ignored
     /// - every other character is tokenized as `Token::Unknown(character)`
     /// 
@@ -35,6 +59,7 @@ impl Calcr {
     /// two operands that are allowed to be at the beginning
     /// of the input.
     // TODO: examples
+    // FIXME: fix major issue with brackets (and maybe there's more idk)
     fn lexer(input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
 
@@ -95,6 +120,8 @@ impl Calcr {
                 '\\' => tokens.push(Token::CommandToken),
                 '(' => tokens.push(Token::LeftBracket),
                 ')' => tokens.push(Token::RightBracket),
+                '&' => tokens.push(Token::Operators(Ops::Add)),
+                '|' => tokens.push(Token::Operators(Ops::Or)),
                 '+' => {
                     if tokens.is_empty() {
                         tokens.push(Token::Number(0.0));
@@ -130,7 +157,9 @@ impl Calcr {
         let mut buffer: Vec<Token> = Vec::new();
         let mut stack: Vec<Token> = Vec::new();
         
-        for token in tokens {
+        for idx in 0..tokens.len() {
+            let token = tokens[idx].clone();
+
             match token {
                 Token::LeftBracket => stack.push(token),
                 Token::RightBracket => {
@@ -159,7 +188,16 @@ impl Calcr {
                     
                     stack.push(token.clone())
                 },
-                Token::Number(_) => buffer.push(token),
+                Token::Number(_) => {
+                    if idx == 0 {
+                        buffer.push(token);
+                    } else if let Some(prev) = tokens.iter().nth(idx - 1) {
+                        match prev {
+                            Token::Number(_) => return Err(TokenError::MissingOperators),
+                            _ => buffer.push(token),
+                        }
+                    }
+                },
                 Token::Variable(..) => {
                     buffer.push(token.clone());
 
@@ -170,6 +208,7 @@ impl Calcr {
                 Token::Unknown(c) => return Err(TokenError::UnknownToken(c)),
                 _ => return Err(TokenError::UnknownError),
             }
+            // TODO: remove these when everything works
             // println!("stack = {:?}", stack);
             // println!("buffer = {:?}", buffer);
         }
@@ -191,22 +230,28 @@ impl Calcr {
 
     // TODO: documentation
     // TODO: examples
+    // TODO: debug command to show vecs and stuff (probably it's a mess because it's a global flag, fuck)
     pub fn evaluate(&mut self, input: &str) -> Result<f32, TokenError> {
         let tokens = Self::lexer(input);
         
+        // the input was empty
+        if tokens.is_empty() {
+            return Ok(0.0)
+        }
+
         for (idx, token) in tokens.iter().enumerate() {
             match (idx, token) {
                 (0, Token::Command(Cmd::Exit)) => {
-                    println!("bye )/");
+                    // TODO: better way to exit the program, too rough and ugly message
+                    println!("A nicer way to exit from the program is still WIP...");
 
-                    process::exit(0x100);
+                    // process::exit(0x100);
+                    quit::with_code(0x100);
                 },
                 (0, Token::Command(Cmd::Help)) => {
-                    // TODO: explain that if the command does not have parameters,
-                    // if there are any, they will be ignored
-                    // TODO: write the help message
-                    println!("* Insert help message here *");
+                    // TODO: make this help message a constant, this way is too dumb
 
+                    println!("WIP going on here");
                     return Ok(0.0);
                 },
                 (_, Token::Command(cmd)) => return Err(TokenError::InvalidCommandSyntax(*cmd)),
@@ -215,8 +260,6 @@ impl Calcr {
         }
 
         let postfix = self.parse(tokens);
-
-        // println!("{:?}", postfix);
 
         match postfix {
             Ok(expression) => {
@@ -240,10 +283,31 @@ impl Calcr {
                                 // note: they are inverted
                                 (Some(second_number), Some(first_number)) => {
                                     let result = match operator {
+                                        Ops::And => {
+                                            if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
+                                                let f = unsafe { first_number.to_int_unchecked::<isize>() };
+                                                let s = unsafe { first_number.to_int_unchecked::<isize>() };
+
+                                                (f & s) as f32
+                                            } else {
+                                                return Err(TokenError::InvalidBitwiseOperands);
+                                            }
+                                        },
+                                        Ops::Or => {
+                                            if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
+                                                let f = unsafe { first_number.to_int_unchecked::<isize>() };
+                                                let s = unsafe { first_number.to_int_unchecked::<isize>() };
+
+                                                (f | s) as f32
+                                            } else {
+                                                return Err(TokenError::InvalidBitwiseOperands);
+                                            }
+                                        },
                                         Ops::Add => first_number + second_number,
                                         Ops::Sub => first_number - second_number,
                                         Ops::Mul => first_number * second_number,
                                         Ops::Div => first_number / second_number,
+                                        Ops::Pow => first_number.powf(second_number),
                                         _ => return Err(TokenError::UnimplementedOperator(operator)),
                                     };
 
@@ -254,12 +318,6 @@ impl Calcr {
                         },
                         _ => return Err(TokenError::UnknownError),
                     }
-                }
-                // println!("stack at the end = {:?}", stack);
-
-                // the given input was empty
-                if stack.is_empty() {
-                    return Ok(0.0)
                 }
 
                 if stack.len() > 1 {
@@ -273,8 +331,8 @@ impl Calcr {
     }
 }
 
-
-// TODO: write tests for command
+// TODO: write tests for commands
+// TODO: write tests for bit operators
 // TODO: write tests for other things, once implemented
 #[cfg(test)]
 mod tests {
@@ -372,6 +430,15 @@ mod tests {
             Token::Number(4.0),
             Token::Operators(Ops::Sub),
         ]));
+
+        let tokens10 = Calcr::lexer("5 6 +");
+
+        assert_eq!(calcr.parse(tokens10), Err(TokenError::MissingOperators));
+        
+        // FIXME: this test right here, and it's not enough anyway
+        // let tokens11 = Calcr::lexer("3 ( + 8 )");
+
+        // assert_eq!(calcr.parse(tokens11), Err(TokenError::MissingOperands))
     }
 
     #[test]
