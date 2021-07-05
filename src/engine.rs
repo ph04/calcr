@@ -255,11 +255,8 @@ impl Calcr {
 
         if tokens.len() > 1 {
             for window in tokens.windows(2) {
-                match (&window[0], &window[1]) {
-                    (Token::Number(_) | Token::Variable(..), Token::Number(_) | Token::Variable(..)) => {
-                        return Err(TokenError::MissingOperators);
-                    }
-                    _ => {},
+                if let (Token::Number(_) | Token::Variable(..), Token::Number(_) | Token::Variable(..)) = (&window[0], &window[1]) {
+                    return Err(TokenError::MissingOperators)
                 }
             }
         }
