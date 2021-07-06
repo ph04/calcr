@@ -9,8 +9,8 @@ Operators like `^` and `!` are still work in progress, and also custom variables
 
 ### WIP
 - [x] implement hashmap for variables
-- [ ] 
-- [ ] custom variables
+- [ ] implement constants
+- [ ] implement custom variables
 - [x] fix major issue (to check)
 - [ ] fix bitwise operators
 - [x] fix `(-5)` issue (to check)
