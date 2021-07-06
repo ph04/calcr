@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 ansi_term = "0.12.1"
 quit = "1.1.4"
+clearscreen = "1.0.4"
