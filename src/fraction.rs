@@ -141,6 +141,19 @@ impl Fraction {
         self.numerator as f32 / self.denominator.get() as f32
     }
 
+    // TODO: docs and examples
+    pub fn try_integer(&self) -> Result<isize, MathError> {
+        unsafe {
+            let float = self.float_unchecked();
+
+            if float.fract() == 0.0 {
+                Ok(float.to_int_unchecked())
+            } else {
+                Err(MathError::IntegerUnwrap)
+            }
+        }
+    }
+
     /// # Safety
     /// Creates an instance of a `Fraction` without checking whether the denominator is 0.
     /// 
@@ -302,52 +315,14 @@ impl ops::Neg for Fraction {
     }
 }
 
-impl ops::AddAssign for Fraction {
-    fn add_assign(&mut self, other: Fraction) {
-        let result = *self + other;
-
-        *self = Fraction {
-            numerator: result.numerator,
-            denominator: result.denominator,
-        }
-    } 
-}
-
-impl ops::SubAssign for Fraction {
-    fn sub_assign(&mut self, other: Fraction) {
-        let result = *self - other;
-
-        *self = Fraction {
-            numerator: result.numerator,
-            denominator: result.denominator,
-        }
-    }
-}
-
-impl ops::MulAssign for Fraction {
-    fn mul_assign(&mut self, other: Fraction) {
-        let result = *self * other;
-
-        *self = Fraction {
-            numerator: result.numerator,
-            denominator: result.denominator,
-        }
-    } 
-}
-
-// impl ops::DivAssign for Fraction {
-//     fn div_assign(&mut self, other: Fraction) {
-//         let result = *self / other;
-
-//         *self = Fraction {
-//             numerator: result.numerator,
-//             denominator: result.denominator,
-//         }
-//     }
-// }
-
 impl fmt::Display for Fraction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} / {})", self.numerator, self.denominator.get())
+    }
+}
+
+impl Default for Fraction {
+    fn default() -> Fraction {
+        consts::ZERO_FRACTION
     }
 }

@@ -1,22 +1,63 @@
 # calcr
-A simple calculator made in Rust.
 
-### What it can
-To be written...
+A simple calculator made in Rust. The calculator internally handles
+numbers as fractions, and it's able to handle constants and custom variables.
+The input is first tokenized with a lexer, and the token stream
+is then parsed and evaluated using postfix expression and evaluation.
 
-### WIP
+## What it can
+
+This calculator is able to handle:
+
+- `&` is currently unimplemented
+- `|` is currently unimplemented
+- `+` addition
+- `-` subtraction
+- `*` multiplication
+- `/` division
+- `^` exponential
+- `!` is currently unimplemented
+
+It comes with many commands and features:
+
+- `\exit` allows you to exit the program
+- `\help` is currently WIP
+- `\clear` clears the screen
+- `\debug` shows some debug information
+- `\ratio` shows the result as a fraction
+- `\hex` shows the result in hexadecimal
+- `\flags` shows the current status of every flag
+- `\vars` shows every custom variable stored in the calculator
+
+There are some constants already defined in the calculator,
+such as `pi` and `e`, but if you need more variables you can define custom ones!
+
+```plain text
+myvar = 4
+> 4
+myvar + 3
+> 7
+```
+
+## WIP
+
 - [x] implement hashmap for variables
 - [x] implement constants
 - [x] implement custom variables
 - [x] fix `a = -5`
+- [x] fix `()`
+- [x] implement `\hex` command
+- [x] implement `\flags` command
+- [x] fix `0^0`
+- [x] `^` operator
+- [x] implement structopt
+- [x] implement ans
+- [x] implement `\vars` command
 - [ ] fix fraction.rs doc tests
-- [ ] implement structopt
 - [ ] handle floats
-- [ ] implement ans
-- [ ] implement `\vars` command
 - [ ] implement `\remove` command
 - [ ] fix `\help` command
 - [ ] fix bitwise operators
-- [ ] `^` operator (to check)
 - [ ] `!` operator
 - [ ] history system
+- [ ] docs and examples all around

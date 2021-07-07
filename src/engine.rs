@@ -5,7 +5,7 @@ use crate::{
 use std::collections::HashMap;
 // use std::{process, f32};
 // use std::{convert::TryInto, f32};
-// use ansi_term::Colour::RGB;
+use ansi_term::Colour::{Red, Green};
 // use clearscreen::clear;
 // use std::fmt::Write;
 
@@ -33,8 +33,10 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Calcr {
     pub ratio_flag: bool,
-    debug_flag: bool,
+    pub hex_flag: bool,
+    pub debug_flag: bool,
 
+    ans: Fraction,
     vars: HashMap<Token, Fraction>,
 }
 
@@ -46,7 +48,9 @@ impl Calcr {
         Self {
             debug_flag: false,
             ratio_flag: false,
-
+            hex_flag: false,
+            
+            ans: ZERO_FRACTION,
             vars,
         }
     }
@@ -121,6 +125,9 @@ impl Calcr {
                             "clear" => Cmd::Clear,
                             "debug" => Cmd::Debug,
                             "ratio" => Cmd::Ratio,
+                            "hex" => Cmd::Hex,
+                            "flags" => Cmd::Flags,
+                            "vars" => Cmd::Vars,
                             _ => Cmd::Unknown(string),
                         };
 
@@ -129,6 +136,7 @@ impl Calcr {
                         tokens.push(Token::Command(command));
                     } else {
                         tokens.push(match string.as_str() {
+                            "ans" => Token::Ans,
                             "pi" => Token::Constant(Const::Pi),
                             "e" => Token::Constant(Const::E),
                             "tau" => Token::Constant(Const::Tau),
@@ -152,7 +160,6 @@ impl Calcr {
                 '&' => tokens.push(Token::Operators(Ops::And)),
                 '|' => tokens.push(Token::Operators(Ops::Or)),
                 '+' => {
-                    // TODO: maybe a macro?
                     if let Some(prev) = tokens.iter().last() {
                         if let Token::LeftBracket | Token::Equal = prev {
                             tokens.push(Token::Number(ZERO_FRACTION));
@@ -164,7 +171,6 @@ impl Calcr {
                     tokens.push(Token::Operators(Ops::Add));
                 },
                 '-' => {
-                    // TODO: maybe a macro?
                     if let Some(prev) = tokens.iter().last() {
                         if let Token::LeftBracket | Token::Equal = prev {
                             tokens.push(Token::Number(ZERO_FRACTION));
@@ -192,9 +198,7 @@ impl Calcr {
         tokens
     }
 
-    /// Returns the postfix expression of the given input.
-    /// Returns `Ok(Vec<Token>)` if there are no syntax errors in the input,
-    /// otherwise it returns an `Err(TokenError)`.
+    /// Returns the postfix expression of the lexed input.
     fn parse(&mut self, tokens: Vec<Token>) -> Result<Vec<Token>, TokenError> {
         let mut buffer: Vec<Token> = Vec::new();
         let mut stack: Vec<Token> = Vec::new();
@@ -231,6 +235,7 @@ impl Calcr {
                 Token::Number(_) => buffer.push(token),
                 Token::Variable(..) => buffer.push(token.clone()),
                 Token::Constant(c) => buffer.push(Token::Number(c.value())),
+                Token::Ans => buffer.push(Token::Number(self.ans)),
                 Token::Unknown(c) => return Err(TokenError::UnknownToken(c)),
                 _ => return Err(TokenError::UnknownError(1)),
             }
@@ -252,11 +257,16 @@ impl Calcr {
             println!("Postfix expression: {:?}", buffer);
         }
 
-        Ok(buffer)
+        if buffer.is_empty() { // the input was `()`
+            Err(TokenError::EmptyBrackets)
+        } else {
+            Ok(buffer)
+        }
     }
 
     // TODO: docs
-    fn evaluate_postfix(&self, expression: Vec<Token>) -> Result<Fraction, TokenError> {
+    /// Evaluates the postfix expression returned from the parser.
+    fn evaluate_postfix(&mut self, expression: Vec<Token>) -> Result<Fraction, TokenError> {
         let mut stack = Vec::new();
 
         for token in expression {
@@ -308,13 +318,18 @@ impl Calcr {
                                         return Err(TokenError::DivisionByZero)
                                     }
                                 },
-                                // FIXME: check
-                                Ops::Pow => Fraction::from(
-                                    first_number
-                                        .float()
-                                        .unwrap()
-                                        .powf(second_number.float().unwrap())
-                                ),
+                                Ops::Pow => {
+                                    if let (ZERO_FRACTION, ZERO_FRACTION) = (first_number, second_number) {
+                                        return Err(TokenError::IndeterminateForm)
+                                    } else {
+                                        Fraction::from(
+                                            first_number
+                                                .float()
+                                                .unwrap()
+                                                .powf(second_number.float().unwrap())
+                                        )
+                                    }
+                                },
                                 _ => return Err(TokenError::UnimplementedOperator(operator)),
                             };
 
@@ -331,7 +346,11 @@ impl Calcr {
             return Err(TokenError::MissingOperators)
         }
 
-        Ok(stack[0])
+        let result = stack[0];
+
+        self.ans = result;
+
+        Ok(result)
     }
 
     // TODO: docs and examples
@@ -382,6 +401,45 @@ impl Calcr {
                     println!("Ratio flag toggled.");
 
                     return Ok(ZERO_FRACTION);
+                },
+                (0, Token::Command(Cmd::Hex)) => {
+                    self.hex_flag = !self.hex_flag;
+
+                    if self.ratio_flag {
+                        self.ratio_flag = false;
+
+                        println!("Ratio flag toggled, since it was conflicting with the hex flag.");
+                    }
+
+                    println!("Hex flag toggled.");
+
+                    return Ok(ZERO_FRACTION);
+                },
+                (0, Token::Command(Cmd::Flags)) => {
+                    let t = &Green.paint("true");
+                    let f = &Red.paint("false");
+
+                    println!("Current flags:");
+                    println!("Debug flag: {}", if self.debug_flag { t } else { f });
+                    println!("Ratio flag: {}", if self.ratio_flag { t } else { f });
+                    println!("Hex flag: {}", if self.hex_flag { t } else { f });
+
+                    return Ok(ZERO_FRACTION)
+                },
+                (0, Token::Command(Cmd::Vars)) => {
+                    if self.vars.is_empty() {
+                        println!("There are no variables stored.")
+                    } else {
+                        for var in self.vars.iter() {
+                            if let Token::Variable(name) = var.0 {
+                                print!("{}: ", name)
+                            }
+
+                            println!("{} = {}", var.1, unsafe { var.1.float_unchecked() })
+                        }
+                    }
+
+                    return Ok(ZERO_FRACTION)
                 },
                 (0, Token::Command(Cmd::Unknown(name))) => return Err(TokenError::UnknownCommand(name.clone())),
                 (_, Token::Command(cmd)) => return Err(TokenError::InvalidCommandSyntax(cmd.clone())),

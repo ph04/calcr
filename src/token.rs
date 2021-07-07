@@ -54,6 +54,9 @@ pub enum Cmd {
     Clear,
     Debug,
     Ratio,
+    Hex,
+    Flags,
+    Vars,
     Unknown(String),
 }
 
@@ -65,6 +68,9 @@ impl fmt::Display for Cmd {
             Self::Clear => write!(f, "clear"),
             Self::Debug => write!(f, "debug"),
             Self::Ratio => write!(f, "ratio"),
+            Self::Hex => write!(f, "hex"),
+            Self::Flags => write!(f, "flags"),
+            Self::Vars => write!(f, "vars"),
             Self::Unknown(name) => write!(f, "{}", name), // should never be printed
         }
     }
@@ -109,6 +115,7 @@ pub enum Token {
     RightBracket,
     Operators(Ops),
     Equal,
+    Ans,
     Unknown(char),
     Command(Cmd),
 }
@@ -124,6 +131,7 @@ impl fmt::Display for Token {
             Self::RightBracket => write!(f, ")"),
             Self::Operators(op) => write!(f, "{}", op),
             Self::Equal => write!(f, "="),
+            Self::Ans => write!(f, "ans"),
             Self::Unknown(c) => write!(f, "{}", c),
             Self::Command(cmd) => write!(f, "{}", cmd),
         }
@@ -144,8 +152,10 @@ pub enum TokenError {
     InvalidBitwiseOperands,
     InvalidDefinitionSyntax,
     InvalidVariableName(Token),
+    EmptyBrackets,
     ConstantName(Const),
     DivisionByZero,
+    IndeterminateForm,
     UnknownError(usize),
 }
 
@@ -163,8 +173,10 @@ impl fmt::Display for TokenError {
             Self::InvalidBitwiseOperands => write!(f, "Invalid bitwise operands, integers are required."),
             Self::InvalidDefinitionSyntax => write!(f, "Invalid syntax for defining variables."),
             Self::InvalidVariableName(name) => write!(f, "'{}' is an invalid variable name.", name),
+            Self::EmptyBrackets => write!(f, "No instructions."),
             Self::ConstantName(c) => write!(f, "'{}' is an invalid variable name, since it's a constant.", c),
             Self::DivisionByZero => write!(f, "Attempt to divide by 0."),
+            Self::IndeterminateForm => write!(f, "Indeterminate form."),
             Self::UnknownError(code) => write!(f, "An unknown error occured while evaluating the input. Please report this bug to the developer. Error code: #{:04}.", code),
         }
     }
