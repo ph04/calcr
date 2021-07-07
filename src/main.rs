@@ -2,6 +2,7 @@ use std::io;
 use calcr::engine::Calcr;
 use ansi_term::Colour::{Red, Green, RGB};
 
+// TODO: implement StructOpt
 fn main() {
     let mut calcr = Calcr::new();
 
@@ -31,9 +32,9 @@ fn main() {
                 print!("{} ", green_arrow);
 
                 if calcr.ratio_flag {
-                    println!("{}", unsafe { result.float_unchecked() });
-                } else {
                     println!("{}", result);
+                } else {
+                    println!("{}", unsafe { result.float_unchecked() });
                 }
             },
             Err(token_error) => {

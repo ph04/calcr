@@ -1,21 +1,34 @@
 #![allow(clippy::suspicious_arithmetic_impl)]
 
-// TODO: HIGHLY CONSIDER MAKING EVERYTHING PUB BECAUSE IT MAKES MUCH MORE SENSE,
-// AND ALSO CHECK COMMENTS AND DOCS
+// TODO: CHECK COMMENTS AND DOCS
 use crate::matherror::MathError;
 
-use std::{ops, fmt, num::NonZeroUsize};
+use std::{f32, ops, fmt, num::NonZeroUsize};
 
-pub const ZERO_FRACTION: Fraction = Fraction {
-    numerator: 0,
-    denominator: unsafe { NonZeroUsize::new_unchecked(1) },
-};
+pub mod consts {
+    use super::*;
 
-// FIXME: CHANGE THIS WITH REAL VALUES
-pub const PI_FRACTION: Fraction = Fraction {
-    numerator: 3,
-    denominator: unsafe { NonZeroUsize::new_unchecked(1) }
-};
+    pub const ZERO_FRACTION: Fraction = Fraction {
+        numerator: 0,
+        denominator: unsafe { NonZeroUsize::new_unchecked(1) },
+    };
+
+    // FIXME: CHANGE THESE WITH REAL VALUES
+    pub const PI_FRACTION: Fraction = Fraction {
+        numerator: 3,
+        denominator: unsafe { NonZeroUsize::new_unchecked(1) }
+    };
+
+    pub const E_FRACTION: Fraction = Fraction {
+        numerator: 3,
+        denominator: unsafe { NonZeroUsize::new_unchecked(1) }
+    };
+
+    pub const TAU_FRACTION: Fraction = Fraction {
+        numerator: 3,
+        denominator: unsafe { NonZeroUsize::new_unchecked(1) }
+    };
+}
 
 /// A struct used to handle rational numbers.
 // TODO: examples
@@ -49,14 +62,15 @@ impl Fraction {
     /// Returns the GCD from the two input numbers with the Euclidean algorithm.
     fn gcd(mut x: usize, mut y: usize) -> usize {
         // if the numerator is 0, the GCD would be 0 as well,
-        // and there would be divisions by zero,
-        // so the denominator is returned and the fraction will always be 0/1.
+        // and there would be a division by zero,
+        // so the denominator is returned and the fraction will always be (0 / 1).
         if x == 0 {
             return y;
         }
 
         while y != 0 {
             let t = y;
+
             y = x % y;
             x = t;
         }
@@ -88,19 +102,19 @@ impl Fraction {
     /// ```
     /// # pub use fraction::rational::Fraction;
     /// # pub use fraction::matherror::MathError;
-    /// let fraction1 = Fraction::new(-1, 2); // (-1/2)
+    /// let fraction1 = Fraction::new(-1, 2); // (-1 / 2)
     /// 
-    /// let fraction2 = Fraction::new(3, 0); // (3/0)
+    /// let fraction2 = Fraction::new(3, 0); // (3 / 0)
     /// 
     /// assert_eq!(fraction2, Err(MathError::Infinity));
     /// 
-    /// let fraction3 = Fraction::new(0, 0); // (0/0)
+    /// let fraction3 = Fraction::new(0, 0); // (0 / 0)
     /// 
     /// assert_eq!(fraction3, Err(MathError::Indeterminate));
     /// ```
     pub fn new(numerator: isize, denominator: usize) -> Result<Self, MathError> {
         match (numerator, NonZeroUsize::new(denominator)) {
-            (0, None) => Err(MathError::Indeterminate),
+            // (0, None) => Err(MathError::Indeterminate),
             (_, None) => Err(MathError::Infinity),
             (n, Some(d)) => {
                 let mut fraction = Fraction {
@@ -112,6 +126,13 @@ impl Fraction {
 
                 Ok(fraction)
             },
+        }
+    }
+
+    pub fn float(&self) -> Result<f32, MathError> {
+        match self.denominator.get() {
+            0 => Err(MathError::Infinity),
+            _ => Ok(self.numerator as f32 / self.denominator.get() as f32),
         }
     }
 
@@ -166,9 +187,9 @@ impl Fraction {
     /// 
     /// ```
     /// # pub use fraction::rational::Fraction;
-    /// let fraction = Fraction::new(2, 3).unwrap(); // (2/3)
+    /// let fraction = Fraction::new(2, 3).unwrap(); // (2 / 3)
     /// 
-    /// assert_eq!(fraction.pow(3), Fraction::new(8, 27).unwrap()); // (2/3) ^ 3 = (8/27)
+    /// assert_eq!(fraction.pow(3), Fraction::new(8, 27).unwrap()); // (2 / 3) ^ 3 = (8 / 27)
     /// ```
     pub fn pow(&self, exp: u32) -> Self {
         Self {
@@ -181,8 +202,9 @@ impl Fraction {
 
     // TODO: docs and examples
     pub fn from(number: f32) -> Self {
+        // if the number is 0.0, the algorithm loops infinitely
         if number == 0.0 {
-            return ZERO_FRACTION
+            return consts::ZERO_FRACTION
         }
 
         let error_margin = 0.001;

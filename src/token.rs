@@ -1,5 +1,5 @@
-use std::{error::Error, fmt, f32};
-use crate::fraction::Fraction;
+use std::{error::Error, fmt};
+use crate::fraction::{Fraction, consts::*};
 
 /// An enum used to handle operator tokens, used in `Token::Operators`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -20,6 +20,7 @@ impl Ops {
     /// - `Add` and `Sub`: level `0`
     /// - `Mul` and `Div`: level `1`
     /// - `Pow` and `Fac`: level `2`
+    // TODO: example
     pub fn precedence(&self) -> u8 {
         match *self {
             Self::And | Self::Or => 0,
@@ -45,7 +46,7 @@ impl fmt::Display for Ops {
     }
 }
 
-/// An enum to handle commands.
+/// An enum used to handle command tokens, used in `Token::Command`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Cmd {
     Exit,
@@ -69,21 +70,40 @@ impl fmt::Display for Cmd {
     }
 }
 
-// pub enum VarState {
-//     Known(f32),
-//     Unknown,
-// }
+/// An enum used to handle constants, used in `Token::Constant`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Const {
+    Pi,
+    E,
+    Tau,
+}
+
+impl Const {
+    pub fn value(&self) -> Fraction {
+        match *self {
+            Self::Pi => PI_FRACTION,
+            Self::E => E_FRACTION,
+            Self::Tau => TAU_FRACTION,
+        }
+    }
+}
+
+impl fmt::Display for Const {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Pi => write!(f, "pi"),
+            Self::E => write!(f, "e"),
+            Self::Tau => write!(f, "tau"),
+        }
+    }
+}
 
 /// An enum used to handle tokens of the given input.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
-    // Number(f32), // TODO: currently can't handle float numbers
-    Number(Fraction),
-    // Variable(String, Option<f32>),
+    Number(Fraction), // TODO: currently can't handle float numbers
     Variable(String),
-    // Variable(Option<f32>),
-    // Variable(VarState),
-    // Variable(String),
+    Constant(Const),
     CommandToken,
     LeftBracket,
     RightBracket,
@@ -91,6 +111,23 @@ pub enum Token {
     Equal,
     Unknown(char),
     Command(Cmd),
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Number(frac) => write!(f, "{}", frac.float().unwrap()),
+            Self::Variable(name) => write!(f, "{}", name),
+            Self::Constant(c) => write!(f, "{}", c),
+            Self::CommandToken => write!(f, "\\"),
+            Self::LeftBracket => write!(f, "("),
+            Self::RightBracket => write!(f, ")"),
+            Self::Operators(op) => write!(f, "{}", op),
+            Self::Equal => write!(f, "="),
+            Self::Unknown(c) => write!(f, "{}", c),
+            Self::Command(cmd) => write!(f, "{}", cmd),
+        }
+    }
 }
 
 /// An enum to handle syntax errors in the given input.
@@ -106,6 +143,8 @@ pub enum TokenError {
     InvalidCommandSyntax(Cmd),
     InvalidBitwiseOperands,
     InvalidDefinitionSyntax,
+    InvalidVariableName(Token),
+    ConstantName(Const),
     DivisionByZero,
     UnknownError(usize),
 }
@@ -123,8 +162,10 @@ impl fmt::Display for TokenError {
             Self::InvalidCommandSyntax(cmd) => write!(f, "Invalid syntax for the command '{}'.", cmd),
             Self::InvalidBitwiseOperands => write!(f, "Invalid bitwise operands, integers are required."),
             Self::InvalidDefinitionSyntax => write!(f, "Invalid syntax for defining variables."),
+            Self::InvalidVariableName(name) => write!(f, "'{}' is an invalid variable name.", name),
+            Self::ConstantName(c) => write!(f, "'{}' is an invalid variable name, since it's a constant.", c),
             Self::DivisionByZero => write!(f, "Attempt to divide by 0."),
-            Self::UnknownError(code) => write!(f, "An unknown error occured while evaluating the input. Please report this bug to the developer. Error code: #{}.", code),
+            Self::UnknownError(code) => write!(f, "An unknown error occured while evaluating the input. Please report this bug to the developer. Error code: #{:04}.", code),
         }
     }
 }

@@ -4,14 +4,12 @@ use std::{error, fmt};
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MathError {
     Infinity,
-    Indeterminate,
 }
 
 impl fmt::Display for MathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             MathError::Infinity => write!(f, "The denominator is 0."),
-            MathError::Indeterminate => write!(f, "The numerator and the denominator are 0."),
         }
     }
 }
