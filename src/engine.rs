@@ -325,18 +325,6 @@ impl Calcr {
                                         return Err(TokenError::IndeterminateForm)
                                     }
                                 },
-                                // Ops::Pow => {
-                                //     if let (ZERO_FRACTION, ZERO_FRACTION) = (first_number, second_number) {
-                                //         return Err(TokenError::IndeterminateForm)
-                                //     } else {
-                                //         Fraction::from(
-                                //             first_number
-                                //                 .float()
-                                //                 .unwrap()
-                                //                 .powf(second_number.float().unwrap())
-                                //         )
-                                //     }
-                                // },
                                 _ => return Err(TokenError::UnimplementedOperator(operator)),
                             };
 
