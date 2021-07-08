@@ -23,8 +23,8 @@ It comes with many commands and features:
 - `\exit` allows you to exit the program
 - `\help` is currently WIP
 - `\clear` clears the screen
-- `\debug` shows some debug information
-- `\ratio` shows the result as a fraction
+- `\debug` shows some debug information, which can be toggled from the command line by passing `--debug`
+- `\ratio` shows the result as a fraction, which can be toggled from the command line by passing `--ratio`
 - `\hex` shows the result in hexadecimal
 - `\flags` shows the current status of every flag
 - `\vars` shows every custom variable stored in the calculator
@@ -41,6 +41,7 @@ myvar + 3
 
 ## WIP
 
+- [x] impmlement powf to fix `^`
 - [x] implement hashmap for variables
 - [x] implement constants
 - [x] implement custom variables

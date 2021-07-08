@@ -1,37 +1,57 @@
 #![allow(clippy::suspicious_arithmetic_impl)]
 
-// TODO: CHECK COMMENTS AND DOCS
 use crate::matherror::MathError;
-
 use std::{f32, ops, fmt, num::NonZeroUsize};
 
 pub mod consts {
     use super::*;
 
+    /// A const used to handle `0`, and the fraction is `(0 / 1)`.
     pub const ZERO_FRACTION: Fraction = Fraction {
         numerator: 0,
         denominator: unsafe { NonZeroUsize::new_unchecked(1) },
     };
 
-    // FIXME: CHANGE THESE WITH REAL VALUES
+    /// A const used to handle `PI`, and the fraction is `(245850922 / 78256779)`.
     pub const PI_FRACTION: Fraction = Fraction {
-        numerator: 3,
-        denominator: unsafe { NonZeroUsize::new_unchecked(1) }
+        numerator: 245850922,
+        denominator: unsafe { NonZeroUsize::new_unchecked(78256779) }
     };
 
+    /// A const used to handle `E`, and the fraction is `(268876667 / 98914198)`.
     pub const E_FRACTION: Fraction = Fraction {
-        numerator: 3,
-        denominator: unsafe { NonZeroUsize::new_unchecked(1) }
+        numerator: 268876667,
+        denominator: unsafe { NonZeroUsize::new_unchecked(98914198) }
     };
 
+    /// A const used to handle `TAU`, and the fraction is `(411557987 / 65501488)`.
     pub const TAU_FRACTION: Fraction = Fraction {
-        numerator: 3,
-        denominator: unsafe { NonZeroUsize::new_unchecked(1) }
+        numerator: 411557987,
+        denominator: unsafe { NonZeroUsize::new_unchecked(65501488) }
     };
 }
 
-/// A struct used to handle rational numbers.
-// TODO: examples
+use self::consts::*;
+
+/// A struct used to handle fractions. It can perform additions,
+/// subtractions, multiplications, divisions and exponentials
+/// on every valid given fraction. The denominator is using a
+/// `NonZeroUsize`, to make sure that is valid.
+/// 
+/// # Examples
+/// 
+/// ```
+/// # pub use calcr::fraction::Fraction;
+/// # pub use calcr::matherror::MathError;
+/// let fraction1 = Fraction::new(-3, 4).unwrap(); // (-3 / 4)
+/// 
+/// let fraction2 = Fraction::new(5, 6).unwrap(); // (5 / 6)
+/// 
+/// assert_eq!(fraction1 + fraction2, Fraction::new(1, 12).unwrap()); // (-3 / 5) + (5 / 6) = (1 / 12)
+/// 
+/// // the denominator of a fraction can't be zero!
+/// assert_eq!(Fraction::new(5, 0), Err(MathError::Infinity)) // can't divide by zero!
+/// ```
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Fraction {
     numerator: isize,
@@ -87,37 +107,29 @@ impl Fraction {
         self.numerator /= gcd as isize;
 
         // since the GCD is always less or equal than the denominator,
-        // and since the denominator is more than 0,
+        // and since the denominator is more than 0 (if checked),
         // it's not needed to unwrap the Option<NonZeroUsize>.
         unsafe { self.denominator = NonZeroUsize::new_unchecked(denominator / gcd) }
     }
 
-    /// Creates an instance of a `Fraction`, and checks if the fields are valid.
-    /// 
-    /// Returns a `Result` with `Ok(Fraction)` if it's valid, otherwise returns `Err(MathError)`
-    /// from the defined enum `MathError`.
+    /// Returns a `Fraction`, and checks if the fields are valid.
     /// 
     /// # Examples
     /// 
     /// ```
-    /// # pub use fraction::rational::Fraction;
-    /// # pub use fraction::matherror::MathError;
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use calcr::matherror::MathError;
     /// let fraction1 = Fraction::new(-1, 2); // (-1 / 2)
     /// 
     /// let fraction2 = Fraction::new(3, 0); // (3 / 0)
     /// 
-    /// assert_eq!(fraction2, Err(MathError::Infinity));
-    /// 
-    /// let fraction3 = Fraction::new(0, 0); // (0 / 0)
-    /// 
-    /// assert_eq!(fraction3, Err(MathError::Indeterminate));
+    /// assert_eq!(fraction2, Err(MathError::Infinity)); // can't divide by zero!
     /// ```
     pub fn new(numerator: isize, denominator: usize) -> Result<Self, MathError> {
         match (numerator, NonZeroUsize::new(denominator)) {
-            // (0, None) => Err(MathError::Indeterminate),
             (_, None) => Err(MathError::Infinity),
             (n, Some(d)) => {
-                let mut fraction = Fraction {
+                let mut fraction = Self {
                     numerator: n,
                     denominator: d,
                 };
@@ -129,41 +141,16 @@ impl Fraction {
         }
     }
 
-    pub fn float(&self) -> Result<f32, MathError> {
-        match self.denominator.get() {
-            0 => Err(MathError::Infinity),
-            _ => Ok(self.numerator as f32 / self.denominator.get() as f32),
-        }
-    }
-
-    // TODO: docs and examples
-    pub unsafe fn float_unchecked(&self) -> f32 {
-        self.numerator as f32 / self.denominator.get() as f32
-    }
-
-    // TODO: docs and examples
-    pub fn try_integer(&self) -> Result<isize, MathError> {
-        unsafe {
-            let float = self.float_unchecked();
-
-            if float.fract() == 0.0 {
-                Ok(float.to_int_unchecked())
-            } else {
-                Err(MathError::IntegerUnwrap)
-            }
-        }
-    }
-
     /// # Safety
-    /// Creates an instance of a `Fraction` without checking whether the denominator is 0.
     /// 
-    /// If it's not the case, the function causes undefined behaviour.
+    /// Returns a `Fraction` without checking if the denominator is not 0;
+    /// if it's not the case, the function can cause undefined behaviour.
     /// 
     /// # Examples
     /// 
     /// ```
-    /// # pub use fraction::rational::Fraction;
-    /// # pub use fraction::matherror::MathError;
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use calcr::matherror::MathError;
     /// unsafe {
     ///     let fraction1_unsafe = Fraction::new_unchecked(-1, 2); // (-1 / 2)
     /// 
@@ -173,18 +160,18 @@ impl Fraction {
     /// 
     /// # Panics
     /// 
-    /// The program panics because there would be divisions by 0.
+    /// If the denominator is `0`, the program could panic.
     /// 
-    /// ```should_panic
-    /// # pub use fraction::rational::Fraction;
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
     /// unsafe {
-    ///     let fraction_unsafe = Fraction::new_unchecked(0, 0); // (0 / 0)
+    ///     let invalid_fraction = Fraction::new_unchecked(4, 0); // (4 / 0)
     ///     
-    ///     // The above expression will make the program panic!
+    ///     // the above expression could make the program panic!
     /// }
     /// ```
     pub unsafe fn new_unchecked(numerator: isize, denominator: usize) -> Self {
-        let mut fraction = Fraction {
+        let mut fraction = Self {
             numerator,
             denominator: NonZeroUsize::new_unchecked(denominator),
         };
@@ -194,26 +181,17 @@ impl Fraction {
         fraction
     }
 
-    /// Returns the fraction to the power of `exp`.
+    /// Returs the `Fraction` of the given float number,
+    /// performing a binary search with the farey sequence.
     /// 
     /// # Examples
     /// 
     /// ```
-    /// # pub use fraction::rational::Fraction;
-    /// let fraction = Fraction::new(2, 3).unwrap(); // (2 / 3)
+    /// # pub use calcr::fraction::Fraction;
+    /// let fraction = Fraction::from(3.692); // 3.692
     /// 
-    /// assert_eq!(fraction.pow(3), Fraction::new(8, 27).unwrap()); // (2 / 3) ^ 3 = (8 / 27)
+    /// assert_eq!(fraction, Fraction::new(923, 250).unwrap()) // 923 / 250 = 3.692
     /// ```
-    pub fn pow(&self, exp: u32) -> Self {
-        Self {
-            numerator: self.numerator.pow(exp),
-            denominator: NonZeroUsize::new(
-                self.denominator.get().pow(exp)
-            ).unwrap(),
-        }
-    }
-
-    // TODO: docs and examples
     pub fn from(number: f32) -> Self {
         // if the number is 0.0, the algorithm loops infinitely
         if number == 0.0 {
@@ -223,7 +201,6 @@ impl Fraction {
         let error_margin = 0.001;
 
         let mut left = (0, 1);
-
         let mut right = (1, 0);
 
         loop {
@@ -247,6 +224,141 @@ impl Fraction {
             } else {
                 right = mediant;
             }
+        }
+    }
+
+    /// If the denominator is valid, returns a `f32` with
+    /// the value of the division of the fraction.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use calcr::matherror::MathError;
+    /// let fraction1 = Fraction::new(1, 4).unwrap(); // (1 / 4)
+    /// 
+    /// assert_eq!(fraction1.float(), Ok(0.25)); // 1 / 4 = 0.25
+    /// 
+    /// unsafe {
+    ///     let fraction2 = Fraction::new_unchecked(-6, 0); // (-6 / 0)
+    ///     
+    ///     assert_eq!(fraction2.float(), Err(MathError::Infinity)); // can't divide by zero!
+    /// }
+    /// ```
+    pub fn float(&self) -> Result<f32, MathError> {
+        match self.denominator.get() {
+            0 => Err(MathError::Infinity),
+            _ => Ok(self.numerator as f32 / self.denominator.get() as f32),
+        }
+    }
+
+    /// # Safety
+    /// 
+    /// Returns a `f32` with the value of the division of the
+    /// fraction, without checking if the denominator is valid.
+    /// 
+    /// # Examples
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use calcr::matherror::MathError;
+    /// unsafe {
+    ///     let fraction1 = Fraction::new_unchecked(-2, 5); // (-2 / 5)
+    /// 
+    ///     assert_eq!(fraction1.float_unchecked(), -0.4) // -2 / 5 = -0.4
+    /// }
+    /// ```
+    /// 
+    /// # Panics
+    /// 
+    /// If the denominator is `0`, the program could panic.
+    /// 
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use std::num::NonZeroUsize;
+    /// unsafe {
+    ///     let invalid_fraction = Fraction::new_unchecked(9, 0); // (9 / 0) is invalid!
+    /// 
+    ///     let invalid_float = invalid_fraction.float_unchecked(); // can't divide by zero!
+    /// 
+    ///     // the above expression could make the program panic!
+    /// }
+    /// ```
+    pub unsafe fn float_unchecked(&self) -> f32 {
+        self.numerator as f32 / self.denominator.get() as f32
+    }
+
+    /// If the division of the fraction is an integer,
+    /// it returns the result of the division as an `isize`.
+    ///
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use calcr::matherror::MathError;
+    /// let fraction1 = Fraction::new(10, 5).unwrap(); // (10 / 5) = (2 / 1)
+    /// 
+    /// assert_eq!(fraction1.try_integer(), Ok(2)); // 2 / 1 = 2
+    /// 
+    /// let fraction2 = Fraction::new(3, 5).unwrap(); // (3 / 5)
+    ///
+    /// assert_eq!(fraction2.try_integer(), Err(MathError::IntegerUnwrap)); // 3 / 5 = 0.6
+    /// ```
+    pub fn try_integer(&self) -> Result<isize, MathError> {
+        // this check is enough since
+        // whenever a `Fraction` is created
+        // it gets reduced to lowest terms
+        if self.denominator.get() == 1 {
+            Ok(self.numerator)
+        } else {
+            Err(MathError::IntegerUnwrap)
+        }
+    }
+
+    /// Returns the given fraction to the power of `exp`, which is a `u32`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
+    /// let fraction = Fraction::new(2, 3).unwrap(); // (2 / 3)
+    /// 
+    /// assert_eq!(fraction.pow(3), Fraction::new(8, 27).unwrap()); // (2 / 3) ^ 3 = (8 / 27)
+    /// ```
+    pub fn pow(&self, exp: u32) -> Self {
+        Self {
+            numerator: self.numerator.pow(exp),
+            denominator: NonZeroUsize::new(
+                self.denominator.get().pow(exp)
+            ).unwrap(),
+        }
+    }
+
+    /// Returns the given fraction to the power of `exp`, which is a `f32`.
+    /// Returns `Err(MathError::Indeterminate)` if the given fractions
+    /// are both `ZERO_FRACTION`.
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::fraction::{Fraction, consts::ZERO_FRACTION};
+    /// # pub use calcr::matherror::MathError;
+    /// let fraction1 = Fraction::new(3, 5).unwrap(); // (3 / 5)
+    /// let fraction2 = Fraction::new(4, 3).unwrap(); // (4 / 3)
+    /// 
+    /// assert_eq!(fraction1.powf(fraction2), Ok(Fraction::new(167, 330).unwrap())); // (3 / 5) ^ (4 / 3) = (167 / 330)
+    /// 
+    /// assert_eq!(ZERO_FRACTION.powf(ZERO_FRACTION), Err(MathError::IndeterminateForm)); // 0 ^ 0 is an indeterminate form
+    /// ```
+    pub fn powf(&self, exp: Self) -> Result<Self, MathError> {
+        match (*self, exp) {
+            (ZERO_FRACTION, ZERO_FRACTION) => Err(MathError::IndeterminateForm),
+            _ => {
+                Ok(Self::from(
+                    self
+                        .float()
+                        .unwrap()
+                        .powf(exp.float().unwrap())
+                ))
+            },
         }
     }
 }
@@ -293,6 +405,10 @@ impl ops::Mul for Fraction {
     }
 }
 
+/// The implementations of the `Div` trait for `Fraction`
+/// returns a `Result<Fraction, MathError>` to avoid
+/// panics on `engine.rs` while the calculator is running,
+/// which would result in making the calculator stop abruptly.
 impl ops::Div for Fraction {
     type Output = Result<Fraction, MathError>;
 

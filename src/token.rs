@@ -4,23 +4,45 @@ use crate::fraction::{Fraction, consts::*};
 /// An enum used to handle operator tokens, used in `Token::Operators`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Ops {
+    /// Used to handle the `&` token.
     And,
+    
+    /// Used to handle the `|` token.
     Or,
+    
+    /// Used to handle the `+` token.
     Add,
+
+    /// Used to handle the `-` token.
     Sub,
+
+    /// Used to handle the `*` token.
     Mul,
+
+    /// Used to handle the `/` token.
     Div,
+
+    /// Used to handle the `^` token.
     Pow,
+
+    /// Used to handle the `!` token.
     Fac,
 }
 
 impl Ops {
     /// A method used to return the precedence level of
     /// any operator. The precedence levels are:
-    /// - `Add` and `Sub`: level `0`
-    /// - `Mul` and `Div`: level `1`
-    /// - `Pow` and `Fac`: level `2`
-    // TODO: example
+    /// - `And` and `Or`: level `0`
+    /// - `Add` and `Sub`: level `1`
+    /// - `Mul` and `Div`: level `2`
+    /// - `Pow` and `Fac`: level `3`
+    ///
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::token::{Token, Ops};
+    /// assert_eq!(Ops::Sub.precedence(), 1);
+    /// ```
     pub fn precedence(&self) -> u8 {
         match *self {
             Self::And | Self::Or => 0,
@@ -47,16 +69,34 @@ impl fmt::Display for Ops {
 }
 
 /// An enum used to handle command tokens, used in `Token::Command`.
+/// `\debug` and `\ratio` can be toggled from the command line.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Cmd {
+    /// Used to handle the `\exit` token.
     Exit,
+
+    /// Used to handle the `\help` token.
     Help,
+
+    /// Used to handle the `\clear` token.
     Clear,
+
+    /// Used to handle the `\debug` token, and can be toggled from the command line by passing `--debug`.
     Debug,
+
+    /// Used to handle the `\ratio` token, and can be toggled from the command line by passing `--ratio`.
     Ratio,
+
+    /// Used to handle the `\hex` token, and it can't be toggled from the command line because it can conflict with the hex flag.
     Hex,
+
+    /// Used to handle the `\flags` token.
     Flags,
+
+    /// Used to handle the `\vars` token.
     Vars,
+
+    /// Used to handle unknown commands.
     Unknown(String),
 }
 
@@ -79,8 +119,13 @@ impl fmt::Display for Cmd {
 /// An enum used to handle constants, used in `Token::Constant`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Const {
+    /// Used to handle the `pi` token.
     Pi,
+
+    /// Used to handle the `e` token.
     E,
+
+    /// Used to handle the `tau` token.
     Tau,
 }
 
@@ -107,17 +152,38 @@ impl fmt::Display for Const {
 /// An enum used to handle tokens of the given input.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
+    /// Used to handle numbers.
     Number(Fraction), // TODO: currently can't handle float numbers
+
+    /// Used to handle variables.
     Variable(String),
+
+    /// Used to handle constants.
     Constant(Const),
-    CommandToken,
-    LeftBracket,
-    RightBracket,
-    Operators(Ops),
-    Equal,
-    Ans,
-    Unknown(char),
+
+    /// Used to handle command.
     Command(Cmd),
+
+    /// Used to handle the `\` token.
+    CommandToken,
+
+    /// Used to handle the `(` token.
+    LeftBracket,
+
+    /// Used to handle the `)` token.
+    RightBracket,
+
+    /// Used to handle `&`, `|`, `+`, `-`, `*`, `/`, `^` and `!` tokens.
+    Operators(Ops),
+
+    /// Used to handle the `=` token.
+    Equal,
+
+    /// Used to handle the `ans` token.
+    Ans,
+
+    /// Used to handle unknown tokens.
+    Unknown(char),
 }
 
 impl fmt::Display for Token {
@@ -125,6 +191,7 @@ impl fmt::Display for Token {
         match self {
             Self::Number(frac) => write!(f, "{}", frac.float().unwrap()),
             Self::Variable(name) => write!(f, "{}", name),
+            Self::Command(cmd) => write!(f, "{}", cmd),
             Self::Constant(c) => write!(f, "{}", c),
             Self::CommandToken => write!(f, "\\"),
             Self::LeftBracket => write!(f, "("),
@@ -133,7 +200,6 @@ impl fmt::Display for Token {
             Self::Equal => write!(f, "="),
             Self::Ans => write!(f, "ans"),
             Self::Unknown(c) => write!(f, "{}", c),
-            Self::Command(cmd) => write!(f, "{}", cmd),
         }
     }
 }
@@ -141,21 +207,52 @@ impl fmt::Display for Token {
 /// An enum to handle syntax errors in the given input.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenError {
+    /// Used to handle unknown token errors.
     UnknownToken(char),
+
+    /// Used to handle unknown variable errors.
     UnknownVariable(String),
+
+    /// Used to handle unknown command errors.
     UnknownCommand(String),
+
+    /// Used to handle errors when bracket are misplaced.
     MisplacedBrackets,
+
+    /// Used to handle errors when operands are missing.
     MissingOperands,
+
+    /// Used to handle errors when operators are missing.
     MissingOperators,
+
+    /// Used to handle unimplemented operator errors.
     UnimplementedOperator(Ops),
+
+    /// Used to handle errors when invalid syntax for commands is used.
     InvalidCommandSyntax(Cmd),
+
+    /// Used to handle invalid bitwise operands errors.
     InvalidBitwiseOperands,
+
+    /// Used to handle errors when invalid syntax when defining variables is used.
     InvalidDefinitionSyntax,
+
+    /// Used to handle errors when using invalid names for variables.
     InvalidVariableName(Token),
-    EmptyBrackets,
+
+    /// Used to handle errors when the name of the variable is already taken by a constant.
     ConstantName(Const),
+
+    /// Used when the input is `()`.
+    EmptyBrackets,
+
+    /// Used to handle errors when the user performs an attempt to divide by `0`.
     DivisionByZero,
+
+    /// Used to handle errors indeterminate forms.
     IndeterminateForm,
+
+    /// Used to handle unknown errors.
     UnknownError(usize),
 }
 
@@ -173,8 +270,8 @@ impl fmt::Display for TokenError {
             Self::InvalidBitwiseOperands => write!(f, "Invalid bitwise operands, integers are required."),
             Self::InvalidDefinitionSyntax => write!(f, "Invalid syntax for defining variables."),
             Self::InvalidVariableName(name) => write!(f, "'{}' is an invalid variable name.", name),
-            Self::EmptyBrackets => write!(f, "No instructions."),
             Self::ConstantName(c) => write!(f, "'{}' is an invalid variable name, since it's a constant.", c),
+            Self::EmptyBrackets => write!(f, "No instructions."),
             Self::DivisionByZero => write!(f, "Attempt to divide by 0."),
             Self::IndeterminateForm => write!(f, "Indeterminate form."),
             Self::UnknownError(code) => write!(f, "An unknown error occured while evaluating the input. Please report this bug to the developer. Error code: #{:04}.", code),

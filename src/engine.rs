@@ -26,7 +26,7 @@ use ansi_term::Colour::{Red, Green};
 // }
 
 /// The struct of the engine of the calculator. The calculator
-/// takes the input, tokenizes it with the lexer, then it
+/// takes the input, tokenizes it with a lexer, then it
 /// parses the tokens returning a postfix expression of the
 /// given input, and then evaluates the postfix expression.
 // TODO: examples
@@ -319,17 +319,24 @@ impl Calcr {
                                     }
                                 },
                                 Ops::Pow => {
-                                    if let (ZERO_FRACTION, ZERO_FRACTION) = (first_number, second_number) {
-                                        return Err(TokenError::IndeterminateForm)
+                                    if let Ok(result) = first_number.powf(second_number) {
+                                        result
                                     } else {
-                                        Fraction::from(
-                                            first_number
-                                                .float()
-                                                .unwrap()
-                                                .powf(second_number.float().unwrap())
-                                        )
+                                        return Err(TokenError::IndeterminateForm)
                                     }
                                 },
+                                // Ops::Pow => {
+                                //     if let (ZERO_FRACTION, ZERO_FRACTION) = (first_number, second_number) {
+                                //         return Err(TokenError::IndeterminateForm)
+                                //     } else {
+                                //         Fraction::from(
+                                //             first_number
+                                //                 .float()
+                                //                 .unwrap()
+                                //                 .powf(second_number.float().unwrap())
+                                //         )
+                                //     }
+                                // },
                                 _ => return Err(TokenError::UnimplementedOperator(operator)),
                             };
 

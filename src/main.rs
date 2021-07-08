@@ -3,16 +3,16 @@ use calcr::engine::Calcr;
 use ansi_term::Colour::{Red, Green, RGB};
 use structopt::StructOpt;
 
-// hex flag is not available from the command line
+// the hex flag is not available from the command line
 // because it can conflict with the ratio flag
 #[derive(StructOpt, Debug)]
 #[structopt(name = "calcr")]
 struct Opt {
-    /// Toggle debug flag.
+    /// Toggles the debug flag.
     #[structopt(short, long)]
     debug: bool,
 
-    /// Toggle ratio flag.
+    /// Toggles the ratio flag.
     #[structopt(short, long)]
     ratio: bool
 }
@@ -62,11 +62,7 @@ fn main() {
 
                     match r {
                         Ok(i) => println!("{:#X}", i),
-                        Err(math_error) => {
-                            let colored_math_error = gray.paint(format!("{}", math_error));
-                            
-                            eprintln!("{}: {}", red_error, colored_math_error);
-                        },
+                        Err(_) => println!("{}", unsafe { result.float_unchecked() }),
                     }
                 } else {
                     println!("{}", unsafe { result.float_unchecked() })
