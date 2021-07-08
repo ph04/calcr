@@ -28,6 +28,7 @@ It comes with many commands and features:
 - `\hex` shows the result in hexadecimal
 - `\flags` shows the current status of every flag
 - `\vars` shows every custom variable stored in the calculator
+- `\remove [variable]` allows you to remove the specified variable
 
 There are some constants already defined in the calculator,
 such as `pi` and `e`, but if you need more variables you can define custom ones!
@@ -60,6 +61,7 @@ myvar + 3
 - [x] fix fraction.rs doc tests
 - [ ] handle floats
 - [ ] fix `\help` command
+- [ ] implement functions
 - [ ] fix bitwise operators
 - [ ] `!` operator
 - [ ] history system
