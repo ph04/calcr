@@ -3,7 +3,7 @@
 A simple calculator made in Rust. The calculator internally handles
 numbers as fractions, and it's able to handle constants and custom variables.
 The input is first tokenized with a lexer, and the token stream
-is then parsed and evaluated using postfix expression and evaluation.
+is then parsed and evaluated using a postfix expression.
 
 ## What it can
 
