@@ -96,6 +96,9 @@ pub enum Cmd {
     /// Used to handle the `\vars` token.
     Vars,
 
+    /// Used to handle the `\remove` token.
+    Remove,
+
     /// Used to handle unknown commands.
     Unknown(String),
 }
@@ -111,7 +114,8 @@ impl fmt::Display for Cmd {
             Self::Hex => write!(f, "hex"),
             Self::Flags => write!(f, "flags"),
             Self::Vars => write!(f, "vars"),
-            Self::Unknown(name) => write!(f, "{}", name), // should never be printed
+            Self::Remove => write!(f, "remove"),
+            Self::Unknown(name) => write!(f, "{}", name),
         }
     }
 }
@@ -252,6 +256,9 @@ pub enum TokenError {
     /// Used to handle errors indeterminate forms.
     IndeterminateForm,
 
+    /// Used to handle errors when a command is called without enough arguments.
+    NotEnoughArguments,
+
     /// Used to handle unknown errors.
     UnknownError(usize),
 }
@@ -274,6 +281,7 @@ impl fmt::Display for TokenError {
             Self::EmptyBrackets => write!(f, "No instructions."),
             Self::DivisionByZero => write!(f, "Attempt to divide by 0."),
             Self::IndeterminateForm => write!(f, "Indeterminate form."),
+            Self::NotEnoughArguments => write!(f, "Not enough arguments passed."),
             Self::UnknownError(code) => write!(f, "An unknown error occured while evaluating the input. Please report this bug to the developer. Error code: #{:04}.", code),
         }
     }

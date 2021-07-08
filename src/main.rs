@@ -53,19 +53,21 @@ fn main() {
         
         match calcr.evaluate(&buffer) {
             Ok(result) => {
-                print!("{} ", green_arrow);
+                if let Some(res) = result {
+                    print!("{} ", green_arrow);
 
-                if calcr.ratio_flag {
-                    println!("{}", result);
-                } else if calcr.hex_flag {
-                    let r = result.try_integer();
+                    if calcr.ratio_flag {
+                        println!("{}", res);
+                    } else if calcr.hex_flag {
+                        let r = res.try_integer();
 
-                    match r {
-                        Ok(i) => println!("{:#X}", i),
-                        Err(_) => println!("{}", unsafe { result.float_unchecked() }),
+                        match r {
+                            Ok(i) => println!("{:#X}", i),
+                            Err(_) => println!("{}", unsafe { res.float_unchecked() }),
+                        }
+                    } else {
+                        println!("{}", unsafe { res.float_unchecked() })
                     }
-                } else {
-                    println!("{}", unsafe { result.float_unchecked() })
                 }
             },
             Err(token_error) => {

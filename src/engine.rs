@@ -3,10 +3,9 @@ use crate::{
     token::{Ops, Cmd, Const, Token, TokenError}
 };
 use std::collections::HashMap;
-// use std::{process, f32};
-// use std::{convert::TryInto, f32};
-use ansi_term::Colour::{Red, Green};
-// use clearscreen::clear;
+use ansi_term::Colour::{Red, Green, RGB};
+
+// FIXME: this
 // use std::fmt::Write;
 
 // const HELP: String = build_help();
@@ -28,20 +27,59 @@ use ansi_term::Colour::{Red, Green};
 /// The struct of the engine of the calculator. The calculator
 /// takes the input, tokenizes it with a lexer, then it
 /// parses the tokens returning a postfix expression of the
-/// given input, and then evaluates the postfix expression.
-// TODO: examples
+/// given input, and lastly it evaluates the postfix expression.
+/// 
+/// # Examples
+/// 
+/// ```
+/// # pub use calcr::engine::Calcr;
+/// # pub use calcr::token::TokenError;
+/// # pub use calcr::fraction::Fraction;
+/// # pub use std::f32::consts::PI;
+/// let mut calcr = Calcr::new();
+/// 
+/// // the calculator internally handles numbers as fraction
+/// assert_eq!(calcr.evaluate("- 3 * 5"), Ok(Some(Fraction::new(-15, 1).unwrap()))); // -3 * 5 = -15
+/// 
+/// assert_eq!(calcr.evaluate("(3 - 5) / (4 - 4)"), Err(TokenError::DivisionByZero)); // can't divide by zero!
+/// 
+/// assert_eq!(calcr.evaluate(r"\flags"), Ok(None)); // shows the flags status
+/// 
+/// assert_eq!(calcr.evaluate("ans * 2").unwrap().unwrap().try_integer().unwrap(), -30); // stores the last valid result!
+/// 
+/// assert_eq!(calcr.evaluate("myvar = 5"), Ok(Some(Fraction::new(5, 1).unwrap()))); // supports custom variables!
+/// 
+/// assert_eq!(calcr.evaluate("2 pi").unwrap().unwrap().float().unwrap(), 2.0 * PI); // knows many constants!
+/// ```
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Calcr {
-    pub ratio_flag: bool,
-    pub hex_flag: bool,
+    /// If `true`, debug details will be provided along with the result of the given input.
     pub debug_flag: bool,
+
+    /// If `true`, the result will be printed as a fraction.
+    pub ratio_flag: bool,
+
+    /// If `true`, the result will be printed with the hexadecimal format.
+    pub hex_flag: bool,
 
     ans: Fraction,
     vars: HashMap<Token, Fraction>,
 }
 
 impl Calcr {
-    // TODO: docs and examples
+    /// Returns a `Calcr` instance. By default, every flag
+    /// is set to `false`, there are no stored variables,
+    /// and `ans` (which stores the result of the previous input),
+    /// is set to `ZERO_FRACTION`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::engine::Calcr;
+    /// let mut calcr = Calcr::new();
+    /// 
+    /// assert_eq!(calcr.debug_flag, false);
+    /// ```
     pub fn new() -> Self {
         let vars = HashMap::new();
 
@@ -59,9 +97,9 @@ impl Calcr {
     /// - numbers are tokenized as `Token::Number(number)`
     /// - variables are tokenizes as `Token::Variable(variable)`
     /// - constants are tokenized as `Token::Constant(constant)`
+    /// - `\` is tokenized as `Token::CommandToken`
     /// - `(` is tokenized as `Token::LeftBracket`
     /// - `)` is tokenized as `Token::RightBracket`
-    /// - `\` is tokenized as `Token::CommandToken`
     /// - `&` is tokenized as `Token::Operators(Ops::And)`
     /// - `|` is tokenized as `Token::Operators(Ops::Or)`
     /// - `+` is tokenized as `Token::Operators(Ops::Add)`
@@ -128,6 +166,7 @@ impl Calcr {
                             "hex" => Cmd::Hex,
                             "flags" => Cmd::Flags,
                             "vars" => Cmd::Vars,
+                            "remove" => Cmd::Remove,
                             _ => Cmd::Unknown(string),
                         };
 
@@ -198,7 +237,7 @@ impl Calcr {
         tokens
     }
 
-    /// Returns the postfix expression of the lexed input.
+    /// Returns the postfix expression of the tokenized input.
     fn parse(&mut self, tokens: Vec<Token>) -> Result<Vec<Token>, TokenError> {
         let mut buffer: Vec<Token> = Vec::new();
         let mut stack: Vec<Token> = Vec::new();
@@ -237,7 +276,7 @@ impl Calcr {
                 Token::Constant(c) => buffer.push(Token::Number(c.value())),
                 Token::Ans => buffer.push(Token::Number(self.ans)),
                 Token::Unknown(c) => return Err(TokenError::UnknownToken(c)),
-                _ => return Err(TokenError::UnknownError(1)),
+                _ => return Err(TokenError::UnknownError(0x0001)),
             }
         }
 
@@ -245,9 +284,9 @@ impl Calcr {
             buffer.push(stack.pop().unwrap())
         }
 
-        // in the case where there are no `RightBracket`s in
+        // in the case where there are no `)` in
         // the given input, the parser has no way to know if
-        // there are any unclosed `LeftBracket`s, thus this
+        // there are any unclosed `(`, thus this
         // check makes sure to handle this edge case
         if buffer.contains(&Token::LeftBracket) {
             return Err(TokenError::MisplacedBrackets)
@@ -264,7 +303,6 @@ impl Calcr {
         }
     }
 
-    // TODO: docs
     /// Evaluates the postfix expression returned from the parser.
     fn evaluate_postfix(&mut self, expression: Vec<Token>) -> Result<Fraction, TokenError> {
         let mut stack = Vec::new();
@@ -333,7 +371,7 @@ impl Calcr {
                         _ => return Err(TokenError::MissingOperands),
                     }
                 },
-                _ => return Err(TokenError::UnknownError(2)),
+                _ => return Err(TokenError::UnknownError(0x0002)),
             }
         }
 
@@ -348,160 +386,184 @@ impl Calcr {
         Ok(result)
     }
 
-    // TODO: docs and examples
-    pub fn evaluate(&mut self, input: &str) -> Result<Fraction, TokenError> {
+    /// Evaluates the given expression.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// # pub use calcr::engine::Calcr;
+    /// # pub use calcr::fraction::Fraction;
+    /// let mut calcr = Calcr::new();
+    /// 
+    /// // the calculator internally handles numbers as fraction
+    /// assert_eq!(calcr.evaluate("3 + 2"), Ok(Some(Fraction::new(5, 1).unwrap()))) // 3 + 2 = 5
+    /// ```
+    pub fn evaluate(&mut self, input: &str) -> Result<Option<Fraction>, TokenError> {
         let tokens = self.lexer(input);
         
         if tokens.is_empty() {
-            return Ok(ZERO_FRACTION);
+            return Ok(Some(ZERO_FRACTION));
         }
 
-        if tokens.len() > 1 {
-            for window in tokens.windows(2) {
-                if let (Token::Number(_) | Token::Variable(..) | Token::Constant(_), Token::Number(_) | Token::Variable(..) | Token::Constant(_)) = (&window[0], &window[1]) {
-                    return Err(TokenError::MissingOperators)
+        match tokens.first().unwrap() {
+            Token::Command(Cmd::Exit) => {
+                // TODO: better way to exit the program, too rough and ugly message
+                println!("A nicer way to exit from the program is still WIP...");
+
+                quit::with_code(0x100);
+            },
+            Token::Command(Cmd::Help) => {
+                // FIXME: do this, it's important
+                println!("WIP going on here");
+            },
+            Token::Command(Cmd::Clear) => clearscreen::clear().expect("An error occured while trying to clear the screen."),
+            Token::Command(Cmd::Debug) => {
+                self.debug_flag = !self.debug_flag;
+
+                println!("Debug flag toggled.");
+            },
+            Token::Command(Cmd::Ratio) => {
+                self.ratio_flag = !self.ratio_flag;
+
+                println!("Ratio flag toggled.");
+            },
+            Token::Command(Cmd::Hex) => {
+                self.hex_flag = !self.hex_flag;
+
+                if self.ratio_flag {
+                    self.ratio_flag = false;
+
+                    println!("Ratio flag toggled, since it was conflicting with the hex flag.");
                 }
-            }
-        }
 
-        for (idx, token) in tokens.iter().enumerate() {
-            match (idx, token) {
-                (0, Token::Command(Cmd::Exit)) => {
-                    // TODO: better way to exit the program, too rough and ugly message
-                    println!("A nicer way to exit from the program is still WIP...");
+                println!("Hex flag toggled.");
+            },
+            Token::Command(Cmd::Flags) => {
+                let t = &Green.paint("true");
+                let f = &Red.paint("false");
 
-                    quit::with_code(0x100);
-                },
-                (0, Token::Command(Cmd::Help)) => {
-                    // FIXME: do this, it's important
-                    println!("WIP going on here");
+                println!("Current flags:");
+                println!("Debug flag: {}", if self.debug_flag { t } else { f });
+                println!("Ratio flag: {}", if self.ratio_flag { t } else { f });
+                println!("Hex flag: {}", if self.hex_flag { t } else { f });
+            },
+            Token::Command(Cmd::Vars) => {
+                if self.vars.is_empty() {
+                    println!("There are no variables stored.")
+                } else {
+                    for var in self.vars.iter() {
+                        if let Token::Variable(name) = var.0 {
+                            print!("{}: ", name)
+                        }
 
-                    return Ok(ZERO_FRACTION);
-                },
-                (0, Token::Command(Cmd::Clear)) => {
-                    clearscreen::clear().expect("An error occured while trying to clear the screen.");
-
-                    return Ok(ZERO_FRACTION);
-                },
-                (0, Token::Command(Cmd::Debug)) => {
-                    self.debug_flag = !self.debug_flag;
-
-                    println!("Debug flag toggled.");
-
-                    return Ok(ZERO_FRACTION);
-                },
-                (0, Token::Command(Cmd::Ratio)) => {
-                    self.ratio_flag = !self.ratio_flag;
-
-                    println!("Ratio flag toggled.");
-
-                    return Ok(ZERO_FRACTION);
-                },
-                (0, Token::Command(Cmd::Hex)) => {
-                    self.hex_flag = !self.hex_flag;
-
-                    if self.ratio_flag {
-                        self.ratio_flag = false;
-
-                        println!("Ratio flag toggled, since it was conflicting with the hex flag.");
+                        println!("{} = {}", var.1, unsafe { var.1.float_unchecked() })
                     }
+                }
+            },
+            Token::Command(Cmd::Remove) => {
+                if let Some(to_delete) = tokens.get(1) {
+                    if self.vars.get(to_delete).is_some() {
+                        self.vars.remove(to_delete);
 
-                    println!("Hex flag toggled.");
-
-                    return Ok(ZERO_FRACTION);
-                },
-                (0, Token::Command(Cmd::Flags)) => {
-                    let t = &Green.paint("true");
-                    let f = &Red.paint("false");
-
-                    println!("Current flags:");
-                    println!("Debug flag: {}", if self.debug_flag { t } else { f });
-                    println!("Ratio flag: {}", if self.ratio_flag { t } else { f });
-                    println!("Hex flag: {}", if self.hex_flag { t } else { f });
-
-                    return Ok(ZERO_FRACTION)
-                },
-                (0, Token::Command(Cmd::Vars)) => {
-                    if self.vars.is_empty() {
-                        println!("There are no variables stored.")
+                        println!("Variable '{}' removed.", to_delete);
+                    } else if let Token::Variable(name) = to_delete {
+                        return Err(TokenError::UnknownVariable(name.clone()));
                     } else {
-                        for var in self.vars.iter() {
-                            if let Token::Variable(name) = var.0 {
-                                print!("{}: ", name)
-                            }
-
-                            println!("{} = {}", var.1, unsafe { var.1.float_unchecked() })
+                        return Err(TokenError::InvalidVariableName(to_delete.clone()))
+                    }
+                } else {
+                    return Err(TokenError::NotEnoughArguments);
+                }
+            },
+            Token::Command(Cmd::Unknown(name)) => return Err(TokenError::UnknownCommand(name.clone())),
+            _ => {
+                for token in tokens.iter() {
+                    if token != tokens.first().unwrap() {
+                        if let Token::Command(cmd) = token {
+                            return Err(TokenError::InvalidCommandSyntax(cmd.clone()))
                         }
                     }
+                }
 
-                    return Ok(ZERO_FRACTION)
-                },
-                (0, Token::Command(Cmd::Unknown(name))) => return Err(TokenError::UnknownCommand(name.clone())),
-                (_, Token::Command(cmd)) => return Err(TokenError::InvalidCommandSyntax(cmd.clone())),
-                _ => {},
-            }
-        }
-
-        if tokens.iter().filter(|t| **t == Token::Equal).count() > 1 {
-            return Err(TokenError::InvalidDefinitionSyntax)
-        }
-
-        if tokens.contains(&Token::Equal) {
-            if tokens.iter().take_while(|t| **t != Token::Equal).count() == 1 {
-                // the statement above makes sure that `tokens[0]` always exists
-                let first_token = tokens[0].clone();
-
-                match first_token {
-                    Token::Variable(..) => {
-                        let rhs: Vec<Token> = tokens
-                            .into_iter()
-                            .skip_while(|t| t != &Token::Equal)
-                            .skip(1)
-                            .collect();
-
-                        if rhs.is_empty() {
-                            return Err(TokenError::InvalidDefinitionSyntax);
+                if tokens.len() > 1 {
+                    for window in tokens.windows(2) {
+                        if let (Token::Number(_) | Token::Variable(..) | Token::Constant(_), Token::Number(_) | Token::Variable(..) | Token::Constant(_)) = (&window[0], &window[1]) {
+                            return Err(TokenError::MissingOperators)
                         }
+                    }
+                }
 
-                        let rhs_parsed = self.parse(rhs);
+                if tokens.contains(&Token::Equal) {
+                    if tokens.iter().filter(|t| **t == Token::Equal).count() > 1 {
+                        return Err(TokenError::InvalidDefinitionSyntax)
+                    }
 
-                        match rhs_parsed {
-                            Ok(parsed) => {
-                                let rhs_evaluated = self.evaluate_postfix(parsed);
+                    if tokens.iter().take_while(|t| **t != Token::Equal).count() == 1 {
+                        // the statement above makes sure that `tokens[0]` always exists
+                        let first_token = tokens[0].clone();
 
-                                match rhs_evaluated {
-                                    Ok(result) => {
-                                        if let Some(value) = self.vars.get_mut(&first_token) {
-                                            *value = result;
-                                        } else {
-                                            self.vars.insert(first_token, result);
+                        match first_token {
+                            Token::Variable(..) => {
+                                let rhs: Vec<Token> = tokens
+                                    .into_iter()
+                                    .skip_while(|t| t != &Token::Equal)
+                                    .skip(1)
+                                    .collect();
+
+                                if rhs.is_empty() {
+                                    return Err(TokenError::InvalidDefinitionSyntax);
+                                }
+
+                                let rhs_parsed = self.parse(rhs);
+
+                                match rhs_parsed {
+                                    Ok(parsed) => {
+                                        let rhs_evaluated = self.evaluate_postfix(parsed);
+
+                                        match rhs_evaluated {
+                                            Ok(result) => {
+                                                if let Some(value) = self.vars.get_mut(&first_token) {
+                                                    *value = result;
+                                                } else {
+                                                    self.vars.insert(first_token, result);
+                                                }
+
+                                                if self.debug_flag {
+                                                    println!("Variables: {:?}", self.vars);
+                                                }
+
+                                                return Ok(Some(result));
+                                            },
+                                            Err(token_error) => return Err(token_error),
                                         }
-
-                                        if self.debug_flag {
-                                            println!("Variables: {:?}", self.vars);
-                                        }
-
-                                        return Ok(result);
                                     },
                                     Err(token_error) => return Err(token_error),
                                 }
                             },
-                            Err(token_error) => return Err(token_error),
+                            Token::Constant(c) => return Err(TokenError::ConstantName(c)),
+                            _ => return Err(TokenError::InvalidVariableName(first_token)),
                         }
-                    },
-                    Token::Constant(c) => return Err(TokenError::ConstantName(c)),
-                    _ => return Err(TokenError::InvalidVariableName(first_token)),
+                    } else {
+                        return Err(TokenError::InvalidDefinitionSyntax)
+                    }
                 }
-            } else {
-                return Err(TokenError::InvalidDefinitionSyntax)
-            }
+
+                let postfix = self.parse(tokens);
+
+                return match postfix {
+                    Ok(expression) => {
+                        let evaluated = self.evaluate_postfix(expression);
+
+                        match evaluated {
+                            Ok(result) => Ok(Some(result)),
+                            Err(error) => Err(error), 
+                        }
+                    }
+                    Err(token_error) => Err(token_error),
+                }
+            },
         }
 
-        let postfix = self.parse(tokens);
-
-        match postfix {
-            Ok(expression) => self.evaluate_postfix(expression),
-            Err(token_error) => Err(token_error), // cringe
-        }
+        Ok(None)
     }
 }

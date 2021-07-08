@@ -54,11 +54,12 @@ myvar + 3
 - [x] implement structopt
 - [x] implement ans
 - [x] implement `\vars` command
-- [ ] fix fraction.rs doc tests
+- [x] docs and examples all around
+- [x] implement `\remove` command
+- [x] change how commands are implemented
+- [x] fix fraction.rs doc tests
 - [ ] handle floats
-- [ ] implement `\remove` command
 - [ ] fix `\help` command
 - [ ] fix bitwise operators
 - [ ] `!` operator
 - [ ] history system
-- [ ] docs and examples all around
