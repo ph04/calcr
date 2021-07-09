@@ -183,6 +183,9 @@ pub enum Token {
     /// Used to handle the `=` token.
     Equal,
 
+    /// Used to handle the ` ` token, but only in special cases.
+    Space,
+
     /// Used to handle the `ans` token.
     Ans,
 
@@ -202,6 +205,7 @@ impl fmt::Display for Token {
             Self::RightBracket => write!(f, ")"),
             Self::Operators(op) => write!(f, "{}", op),
             Self::Equal => write!(f, "="),
+            Self::Space => write!(f, " "),
             Self::Ans => write!(f, "ans"),
             Self::Unknown(c) => write!(f, "{}", c),
         }
@@ -229,11 +233,17 @@ pub enum TokenError {
     /// Used to handle errors when operators are missing.
     MissingOperators,
 
+    /// Used to handles errors when there is a `\` without any command
+    MissingCommand,
+
     /// Used to handle unimplemented operator errors.
     UnimplementedOperator(Ops),
 
     /// Used to handle errors when invalid syntax for commands is used.
     InvalidCommandSyntax(Cmd),
+
+    /// Used to handle errors when spacing is not allowed.
+    WrongSpacing,
 
     /// Used to handle invalid bitwise operands errors.
     InvalidBitwiseOperands,
@@ -272,8 +282,10 @@ impl fmt::Display for TokenError {
             Self::MisplacedBrackets => write!(f, "Brackets are misplaced."),
             Self::MissingOperands => write!(f, "There are not enough operands."),
             Self::MissingOperators => write!(f, "There are not enough operators."),
+            Self::MissingCommand => write!(f, "There are no known commands."),
             Self::UnimplementedOperator(operator) => write!(f, "'{}' is currently unimplemented.", operator),
             Self::InvalidCommandSyntax(cmd) => write!(f, "Invalid syntax for the command '{}'.", cmd),
+            Self::WrongSpacing => write!(f, "Spaces are not allowed in this context."),
             Self::InvalidBitwiseOperands => write!(f, "Invalid bitwise operands, integers are required."),
             Self::InvalidDefinitionSyntax => write!(f, "Invalid syntax for defining variables."),
             Self::InvalidVariableName(name) => write!(f, "'{}' is an invalid variable name.", name),

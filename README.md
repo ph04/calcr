@@ -59,6 +59,7 @@ myvar + 3
 - [x] implement `\remove` command
 - [x] change how commands are implemented
 - [x] fix fraction.rs doc tests
+- [x] fix small command issues
 - [ ] handle floats
 - [ ] fix `\help` command
 - [ ] implement functions

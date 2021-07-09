@@ -109,7 +109,9 @@ impl Calcr {
     /// - `^` is tokenized as `Token::Operators(Ops::Pow)`
     /// - `!` is tokenized as `Token::Operators(Ops::Fac)`
     /// - `=` is tokenized as `Token::Equal`
-    /// - `\r`, `\n` and ` ` are ignored
+    /// - `\r`, `\n` are ignored
+    /// - ` ` is ignored in most cases, except in some contexts
+    /// where spacing is not allowed, and it's tokenized as `Token::Space`
     /// - every other character is tokenized as `Token::Unknown(character)`
     fn lexer(&mut self, input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
@@ -170,7 +172,7 @@ impl Calcr {
                             _ => Cmd::Unknown(string),
                         };
 
-                        tokens.pop().unwrap();
+                        tokens.pop().unwrap(); // removes the `\`
 
                         tokens.push(Token::Command(command));
                     } else {
@@ -225,7 +227,14 @@ impl Calcr {
                 '^' => tokens.push(Token::Operators(Ops::Pow)),
                 '!' => tokens.push(Token::Operators(Ops::Fac)),
                 '=' => tokens.push(Token::Equal),
-                '\r' | '\n' | ' ' => {},
+                '\r' | '\n' => {},
+                ' ' => {
+                    if let Some(Token::CommandToken) = tokens.iter().last() {
+                        tokens.pop().unwrap(); // removes the `\`
+
+                        tokens.push(Token::Space)
+                    }
+                }
                 _ => tokens.push(Token::Unknown(ch)),
             }
         }
@@ -405,6 +414,14 @@ impl Calcr {
             return Ok(Some(ZERO_FRACTION));
         }
 
+        if tokens.contains(&Token::CommandToken) {
+            return Err(TokenError::MissingCommand)
+        }
+
+        if tokens.contains(&Token::Space) {
+            return Err(TokenError::WrongSpacing)
+        }
+
         match tokens.first().unwrap() {
             Token::Command(Cmd::Exit) => {
                 // TODO: better way to exit the program, too rough and ugly message
@@ -480,6 +497,10 @@ impl Calcr {
                 for token in tokens.iter() {
                     if token != tokens.first().unwrap() {
                         if let Token::Command(cmd) = token {
+                            if let Cmd::Unknown(name) = cmd {
+                                return Err(TokenError::UnknownCommand(name.clone()))
+                            }
+
                             return Err(TokenError::InvalidCommandSyntax(cmd.clone()))
                         }
                     }
