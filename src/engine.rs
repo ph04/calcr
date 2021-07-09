@@ -436,9 +436,7 @@ impl Calcr {
 
                 quit::with_code(0x100);
             },
-            Token::Command(Cmd::Help) => {
-                print!("{}", *HELP);
-            },
+            Token::Command(Cmd::Help) => print!("{}", *HELP),
             Token::Command(Cmd::Clear) => clearscreen::clear().expect("An error occured while trying to clear the screen."),
             Token::Command(Cmd::Debug) => {
                 self.debug_flag = !self.debug_flag;
