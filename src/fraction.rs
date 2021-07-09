@@ -1,7 +1,7 @@
 #![allow(clippy::suspicious_arithmetic_impl)]
 
 use crate::matherror::MathError;
-use std::{f32, ops, fmt, num::NonZeroUsize};
+use std::{convert::TryInto, f32, fmt, num::NonZeroUsize, ops};
 
 pub mod consts {
     use super::*;
@@ -47,7 +47,7 @@ use self::consts::*;
 /// 
 /// let fraction2 = Fraction::new(5, 6).unwrap(); // (5 / 6)
 /// 
-/// assert_eq!(fraction1 + fraction2, Fraction::new(1, 12).unwrap()); // (-3 / 5) + (5 / 6) = (1 / 12)
+/// assert_eq!(fraction1 + fraction2, Fraction::new(1, 12).unwrap()); // (-3 / 4) + (5 / 6) = (1 / 12)
 /// 
 /// // the denominator of a fraction can't be zero!
 /// assert_eq!(Fraction::new(5, 0), Err(MathError::Infinity)) // can't divide by zero!
@@ -314,6 +314,7 @@ impl Fraction {
         }
     }
 
+    // TODO: fix this
     /// Returns the given fraction to the power of `exp`, which is a `u32`.
     /// 
     /// # Examples
@@ -359,6 +360,47 @@ impl Fraction {
                         .powf(exp.float().unwrap())
                 ))
             },
+        }
+    }
+
+    /// Calculates recursively the factorial of the given `usize`.
+    fn factorial_internal(n: usize) -> usize {
+        match n {
+            0 | 1 => 1,
+            _ => n * Self::factorial_internal(n - 1),
+        }
+    }
+
+    /// If the given `Fraction` yields a positive integer,
+    /// returns its factorial as a `Fraction`.
+    /// 
+    /// # Examples
+    /// ```
+    /// # pub use calcr::fraction::Fraction;
+    /// # pub use calcr::matherror::MathError;
+    /// let fraction1 = Fraction::from(4.0); // 4.0 = (4 / 1)
+    /// 
+    /// assert_eq!(fraction1.factorial().unwrap().try_integer().unwrap(), 24); // 4! = 24
+    /// 
+    /// let fraction2 = Fraction::from(0.5); // 0.5 = (1 / 2)
+    ///
+    /// assert_eq!(fraction2.factorial(), Err(MathError::InvalidFactorial)); // can't compute 0.5!
+    /// 
+    /// let fraction3 = Fraction::from(-5.0); // -5.0 = (-5 / 1)
+    /// 
+    /// assert_eq!(fraction3.factorial(), Err(MathError::InvalidFactorial)); // can't compute -5!
+    /// ```
+    pub fn factorial(&self) -> Result<Self, MathError> {
+        if let Ok(integer) = self.try_integer() {
+            if !integer.is_negative()  {
+                let factorial = Self::factorial_internal(integer.try_into().unwrap()); // this will never panic
+
+                Ok(Fraction::from(factorial as f32))
+            } else {
+                Err(MathError::InvalidFactorial)
+            }
+        } else {
+            Err(MathError::InvalidFactorial)
         }
     }
 }

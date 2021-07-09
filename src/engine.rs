@@ -43,9 +43,9 @@ lazy_static! {
 /// # pub use calcr::token::TokenError;
 /// # pub use calcr::fraction::Fraction;
 /// # pub use std::f32::consts::PI;
-/// let mut calcr = Calcr::new();
+/// let mut calcr = Calcr::default();
 /// 
-/// // the calculator internally handles numbers as fraction
+/// // the calculator internally handles numbers as fractions
 /// assert_eq!(calcr.evaluate("- 3 * 5"), Ok(Some(Fraction::new(-15, 1).unwrap()))); // -3 * 5 = -15
 /// 
 /// assert_eq!(calcr.evaluate("(3 - 5) / (4 - 4)"), Err(TokenError::DivisionByZero)); // can't divide by zero!
@@ -60,14 +60,9 @@ lazy_static! {
 /// ```
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Calcr {
-    /// If `true`, debug details will be provided along with the result of the given input.
-    pub debug_flag: bool,
-
-    /// If `true`, the result will be printed as a fraction.
-    pub ratio_flag: bool,
-
-    /// If `true`, the result will be printed with the hexadecimal format.
-    pub hex_flag: bool,
+    debug_flag: bool,
+    ratio_flag: bool,
+    hex_flag: bool,
 
     ans: Fraction,
     vars: HashMap<Token, Fraction>,
@@ -83,21 +78,58 @@ impl Calcr {
     /// 
     /// ```
     /// # pub use calcr::engine::Calcr;
-    /// let mut calcr = Calcr::new();
+    /// let mut calcr = Calcr::new(true, false);
     /// 
-    /// assert_eq!(calcr.debug_flag, false);
+    /// assert_eq!(calcr.debug_flag(), true);
     /// ```
-    pub fn new() -> Self {
-        let vars = HashMap::new();
-
+    pub fn new(debug_flag: bool, ratio_flag: bool) -> Self {
         Self {
-            debug_flag: false,
-            ratio_flag: false,
+            debug_flag,
+            ratio_flag,
             hex_flag: false,
             
             ans: ZERO_FRACTION,
-            vars,
+            vars: HashMap::new(),
         }
+    }
+
+    /// Returns the current status of the debug flag.
+    /// 
+    /// # Examples
+    /// ```
+    /// # pub use calcr::engine::Calcr;
+    /// let mut calcr = Calcr::new(true, false);
+    /// 
+    /// assert_eq!(calcr.debug_flag(), true);
+    /// ```
+    pub fn debug_flag(&self) -> bool {
+        self.debug_flag
+    }
+
+    /// Returns the current status of the ratio flag.
+    /// 
+    /// # Examples
+    /// ```
+    /// # pub use calcr::engine::Calcr;
+    /// let mut calcr = Calcr::new(false, true);
+    /// 
+    /// assert_eq!(calcr.ratio_flag(), true);
+    /// ```
+    pub fn ratio_flag(&self) -> bool {
+        self.ratio_flag
+    }
+
+    /// Returns the current status of the hex flag.
+    /// 
+    /// # Examples
+    /// ```
+    /// # pub use calcr::engine::Calcr;
+    /// let mut calcr = Calcr::default();
+    /// 
+    /// assert_eq!(calcr.hex_flag(), false); // it's false by default
+    /// ```
+    pub fn hex_flag(&self) -> bool {
+        self.hex_flag
     }
 
     /// Tokenizes the given input.
@@ -132,7 +164,7 @@ impl Calcr {
             match ch {
                 '0'..='9' => {
                     if let Some(prev) = tokens.iter().last() {
-                        if prev == &Token::RightBracket {
+                        if let Token::RightBracket | Token::Operators(Ops::Fac) = prev {
                             tokens.push(Token::Operators(Ops::Mul))
                         }
                     }
@@ -153,7 +185,7 @@ impl Calcr {
                 },
                 'a'..='z' | 'A'..='Z' => {
                     if let Some(prev) = tokens.iter().last() {
-                        if let Token::RightBracket | Token::Number(_) = prev {
+                        if let Token::RightBracket | Token::Number(_) | Token::Operators(Ops::Fac) = prev {
                             tokens.push(Token::Operators(Ops::Mul))
                         }
                     }
@@ -197,7 +229,7 @@ impl Calcr {
                 '\\' => tokens.push(Token::CommandToken),
                 '(' => {
                     if let Some(prev) = tokens.iter().last() {
-                        if let Token::Number(_) | Token::Variable(..) | Token::Constant(_) | Token::RightBracket = prev {
+                        if let Token::Number(_) | Token::Variable(..) | Token::Constant(_) | Token::RightBracket | Token::Operators(Ops::Fac) = prev {
                             tokens.push(Token::Operators(Ops::Mul))
                         }
                     }
@@ -333,6 +365,19 @@ impl Calcr {
                         return Err(TokenError::UnknownVariable(name.clone()))
                     }
                 }
+                Token::Operators(Ops::Fac) => {
+                    let number = stack.pop();
+
+                    if let Some(fraction) = number {
+                        if let Ok(factorial) = fraction.factorial() {
+                            stack.push(factorial);
+                        } else {
+                            return Err(TokenError::InvalidFactorialOperand);
+                        }
+                    } else {
+                        return Err(TokenError::MissingOperands);
+                    }
+                },
                 Token::Operators(operator) => {
                     let first = stack.pop();
                     let second = stack.pop();
@@ -341,27 +386,22 @@ impl Calcr {
                         // note: they are inverted
                         (Some(second_number), Some(first_number)) => {
                             let result = match operator {
-                                // FIXME: BITWISE OPERATORS ARE SUPER BROKEN
-                                // Ops::And => {
-                                //     if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
-                                //         let f = unsafe { first_number.to_int_unchecked::<isize>() };
-                                //         let s = unsafe { first_number.to_int_unchecked::<isize>() };
-
-                                //         (f & s) as f32
-                                //     } else {
-                                //         return Err(TokenError::InvalidBitwiseOperands);
-                                //     }
-                                // },
-                                // Ops::Or => {
-                                //     if first_number.fract() == 0.0 && second_number.fract() == 0.0 {
-                                //         let f = unsafe { first_number.to_int_unchecked::<isize>() };
-                                //         let s = unsafe { first_number.to_int_unchecked::<isize>() };
-
-                                //         (f | s) as f32
-                                //     } else {
-                                //         return Err(TokenError::InvalidBitwiseOperands);
-                                //     }
-                                // },
+                                Ops::And => {
+                                    match (first_number.try_integer(), second_number.try_integer()) {
+                                        (Ok(f), Ok(s)) => {
+                                            Fraction::from((f & s) as f32)
+                                        },
+                                        _ => return Err(TokenError::InvalidBitwiseOperands),
+                                    }
+                                },
+                                Ops::Or => {
+                                    match (first_number.try_integer(), second_number.try_integer()) {
+                                        (Ok(f), Ok(s)) => {
+                                            Fraction::from((f | s) as f32)
+                                        },
+                                        _ => return Err(TokenError::InvalidBitwiseOperands),
+                                    }
+                                },
                                 Ops::Add => first_number + second_number,
                                 Ops::Sub => first_number - second_number,
                                 Ops::Mul => first_number * second_number,
@@ -409,9 +449,9 @@ impl Calcr {
     /// ```
     /// # pub use calcr::engine::Calcr;
     /// # pub use calcr::fraction::Fraction;
-    /// let mut calcr = Calcr::new();
+    /// let mut calcr = Calcr::new(false, false);
     /// 
-    /// // the calculator internally handles numbers as fraction
+    /// // the calculator internally handles numbers as fractions
     /// assert_eq!(calcr.evaluate("3 + 2"), Ok(Some(Fraction::new(5, 1).unwrap()))) // 3 + 2 = 5
     /// ```
     pub fn evaluate(&mut self, input: &str) -> Result<Option<Fraction>, TokenError> {
@@ -493,7 +533,7 @@ impl Calcr {
                         return Err(TokenError::InvalidVariableName(to_delete.clone()))
                     }
                 } else {
-                    return Err(TokenError::NotEnoughArguments);
+                    return Err(TokenError::MissingArguments);
                 }
             },
             Token::Command(Cmd::Unknown(name)) => return Err(TokenError::UnknownCommand(name.clone())),
@@ -512,8 +552,17 @@ impl Calcr {
 
                 if tokens.len() > 1 {
                     for window in tokens.windows(2) {
+                        // match (&window[0], &window[1]) {
+                        //     (Token::Operators(Ops::Fac), Token::Operators(Ops::Mul)) => {
+
+                        //     },
+                        //     (Token::Number(_) | Token::Variable(..) | Token::Constant(_), Token::Number(_))
+                        // }
+
                         if let (Token::Number(_) | Token::Variable(..) | Token::Constant(_), Token::Number(_) | Token::Variable(..) | Token::Constant(_)) = (&window[0], &window[1]) {
-                            return Err(TokenError::MissingOperators)
+                            if window[0] != Token::Operators(Ops::Fac) {
+                                return Err(TokenError::MissingOperators)
+                            }
                         }
                     }
                 }

@@ -20,15 +20,7 @@ struct Opt {
 fn main() {
     let opt = Opt::from_args();
 
-    let mut calcr = Calcr::new();
-
-    if opt.debug {
-        calcr.debug_flag = true
-    }
-
-    if opt.ratio {
-        calcr.ratio_flag = true
-    }
+    let mut calcr = Calcr::new(opt.debug, opt.ratio);
 
     if cfg!(windows) {
         let _ = ansi_term::enable_ansi_support(); // enables ANSI support for windows
@@ -56,9 +48,9 @@ fn main() {
                 if let Some(res) = result {
                     print!("{} ", green_arrow);
 
-                    if calcr.ratio_flag {
+                    if calcr.ratio_flag() {
                         println!("{}", res);
-                    } else if calcr.hex_flag {
+                    } else if calcr.hex_flag() {
                         let r = res.try_integer();
 
                         match r {

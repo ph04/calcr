@@ -9,14 +9,14 @@ is then parsed and evaluated using a postfix expression.
 
 This calculator is able to handle:
 
-- `&` is currently unimplemented
-- `|` is currently unimplemented
+- `&` bitwise `AND`
+- `|` bitwise `OR`
 - `+` addition
 - `-` subtraction
 - `*` multiplication
 - `/` division
 - `^` exponential
-- `!` is currently unimplemented
+- `!` factorial
 
 It comes with many commands and features:
 
@@ -61,8 +61,11 @@ myvar + 3
 - [x] fix fraction.rs doc tests
 - [x] fix small command issues
 - [x] fix `\help` command
+- [x] change structopt implementation
+- [x] fix bitwise operators
+- [x] `!` operator
 - [ ] handle floats
 - [ ] implement functions
-- [ ] fix bitwise operators
-- [ ] `!` operator
-- [ ] history system
+- [ ] implement updating system
+- [ ] implement history system
+- [ ] implement genetic algorithm

@@ -248,6 +248,9 @@ pub enum TokenError {
     /// Used to handle invalid bitwise operands errors.
     InvalidBitwiseOperands,
 
+    /// Used to handles invalid factorial operand errors.
+    InvalidFactorialOperand,
+
     /// Used to handle errors when invalid syntax when defining variables is used.
     InvalidDefinitionSyntax,
 
@@ -260,14 +263,14 @@ pub enum TokenError {
     /// Used when the input is `()`.
     EmptyBrackets,
 
-    /// Used to handle errors when the user performs an attempt to divide by `0`.
+    /// Used to handle errors when there is an attempt to divide by `0`.
     DivisionByZero,
 
     /// Used to handle errors indeterminate forms.
     IndeterminateForm,
 
     /// Used to handle errors when a command is called without enough arguments.
-    NotEnoughArguments,
+    MissingArguments,
 
     /// Used to handle unknown errors.
     UnknownError(usize),
@@ -287,13 +290,14 @@ impl fmt::Display for TokenError {
             Self::InvalidCommandSyntax(cmd) => write!(f, "Invalid syntax for the command '{}'.", cmd),
             Self::WrongSpacing => write!(f, "Spaces are not allowed in this context."),
             Self::InvalidBitwiseOperands => write!(f, "Invalid bitwise operands, integers are required."),
+            Self::InvalidFactorialOperand => write!(f, "Invalid factorial operand, a positive integer is required."),
             Self::InvalidDefinitionSyntax => write!(f, "Invalid syntax for defining variables."),
             Self::InvalidVariableName(name) => write!(f, "'{}' is an invalid variable name.", name),
             Self::ConstantName(c) => write!(f, "'{}' is an invalid variable name, since it's a constant.", c),
             Self::EmptyBrackets => write!(f, "No instructions."),
             Self::DivisionByZero => write!(f, "Attempt to divide by 0."),
             Self::IndeterminateForm => write!(f, "Indeterminate form."),
-            Self::NotEnoughArguments => write!(f, "Not enough arguments passed."),
+            Self::MissingArguments => write!(f, "Not enough arguments passed."),
             Self::UnknownError(code) => write!(f, "An unknown error occured while evaluating the input. Please report this bug to the developer. Error code: #{:04}.", code),
         }
     }
