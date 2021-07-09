@@ -20,15 +20,15 @@ This calculator is able to handle:
 
 It comes with many commands and features:
 
-- `\exit` allows you to exit the program
-- `\help` is currently WIP
+- `\exit` exits the program
+- `\help` shows the help command
 - `\clear` clears the screen
 - `\debug` shows some debug information, which can be toggled from the command line by passing `--debug`
 - `\ratio` shows the result as a fraction, which can be toggled from the command line by passing `--ratio`
 - `\hex` shows the result in hexadecimal
 - `\flags` shows the current status of every flag
 - `\vars` shows every custom variable stored in the calculator
-- `\remove [variable]` allows you to remove the specified variable
+- `\remove [variable]` removes the specified variable
 
 There are some constants already defined in the calculator,
 such as `pi` and `e`, but if you need more variables you can define custom ones!
@@ -60,8 +60,8 @@ myvar + 3
 - [x] change how commands are implemented
 - [x] fix fraction.rs doc tests
 - [x] fix small command issues
+- [x] fix `\help` command
 - [ ] handle floats
-- [ ] fix `\help` command
 - [ ] implement functions
 - [ ] fix bitwise operators
 - [ ] `!` operator

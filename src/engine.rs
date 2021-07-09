@@ -2,27 +2,34 @@ use crate::{
     fraction::{Fraction, consts::*},
     token::{Ops, Cmd, Const, Token, TokenError}
 };
-use std::collections::HashMap;
+use std::{fmt::Write, collections::HashMap};
 use ansi_term::Colour::{Red, Green, RGB};
+use lazy_static::*;
 
-// FIXME: this
-// use std::fmt::Write;
+lazy_static! {
+    /// Holds the help message, which can be shown by calling the `\help` command.
+    pub static ref HELP: String = {
+        let gray = RGB(175, 175, 175);
 
-// const HELP: String = build_help();
+        let mut help_message = String::new();
 
-// fn build_help() -> String {
-//     let gray = RGB(175, 175, 175);
+        let msg = "An error occured while building the help message";
 
-//     let mut help_message = String::new();
+        writeln!(help_message, "Currently supported commands:").expect(msg);
+        writeln!(help_message, "{} {}\n", gray.italic().paint("Note:"), gray.paint("if a command receives more parameters than what it requires, the exceeding ones will be ignored.")).expect(msg);
+        writeln!(help_message, "- {}: exits the program; takes no parameters", gray.paint(r"\exit")).expect(msg);
+        writeln!(help_message, "- {}: shows this help message; takes no parameters", gray.paint(r"\help")).expect(msg);
+        writeln!(help_message, "- {}: clears the screen; takes no parameters", gray.paint(r"\clear")).expect(msg);
+        writeln!(help_message, "- {}: shows some debug informations; takes no parameters", gray.paint(r"\debug")).expect(msg);
+        writeln!(help_message, "- {}: shows the result as a fraction; takes no parameters", gray.paint(r"\ratio")).expect(msg);
+        writeln!(help_message, "- {}: shows the result in hexadecimal; takes no parameters", gray.paint(r"\hex")).expect(msg);
+        writeln!(help_message, "- {}: shows the current status of every flag; takes no parameters", gray.paint(r"\flags")).expect(msg);
+        writeln!(help_message, "- {}: shows every custom variable stored in the calculator; takes no parameters", gray.paint(r"\vars")).expect(msg);
+        write!(help_message, "- {}: removes the specified variable; takes one parameter", gray.paint(r"\remove")).expect(msg);
 
-//     writeln!(help_message, "Currently supported commands:");
-//     writeln!(help_message, "{} {}\n", gray.italic().paint("Note:"), gray.paint("if a command takes more parameters than what it requires, the exceeding ones will be ignored"));
-//     writeln!(help_message, "- {}: exits the program; takes no parameter", gray.paint("\\exit"));
-//     writeln!(help_message, "- {}: prints this help message; takes no parameter", gray.paint("\\help"));
-//     writeln!(help_message, "");
-
-//     help_message
-// }
+        help_message
+    };
+}
 
 /// The struct of the engine of the calculator. The calculator
 /// takes the input, tokenizes it with a lexer, then it
@@ -431,7 +438,8 @@ impl Calcr {
             },
             Token::Command(Cmd::Help) => {
                 // FIXME: do this, it's important
-                println!("WIP going on here");
+                // println!("WIP going on here");
+                println!("{}", *HELP);
             },
             Token::Command(Cmd::Clear) => clearscreen::clear().expect("An error occured while trying to clear the screen."),
             Token::Command(Cmd::Debug) => {
