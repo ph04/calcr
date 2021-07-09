@@ -25,7 +25,7 @@ lazy_static! {
         writeln!(help_message, "- {}: shows the result in hexadecimal; takes no parameters", gray.paint(r"\hex")).expect(msg);
         writeln!(help_message, "- {}: shows the current status of every flag; takes no parameters", gray.paint(r"\flags")).expect(msg);
         writeln!(help_message, "- {}: shows every custom variable stored in the calculator; takes no parameters", gray.paint(r"\vars")).expect(msg);
-        write!(help_message, "- {}: removes the specified variable; takes one parameter", gray.paint(r"\remove")).expect(msg);
+        writeln!(help_message, "- {}: removes the specified variable; takes one parameter", gray.paint(r"\remove")).expect(msg);
 
         help_message
     };
@@ -437,9 +437,7 @@ impl Calcr {
                 quit::with_code(0x100);
             },
             Token::Command(Cmd::Help) => {
-                // FIXME: do this, it's important
-                // println!("WIP going on here");
-                println!("{}", *HELP);
+                print!("{}", *HELP);
             },
             Token::Command(Cmd::Clear) => clearscreen::clear().expect("An error occured while trying to clear the screen."),
             Token::Command(Cmd::Debug) => {
